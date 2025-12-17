@@ -26,8 +26,8 @@ app.use('/api/notion', createProxyMiddleware({
 // Serve static files from dist
 app.use(express.static(path.join(__dirname, 'dist')));
 
-// SPA fallback - serve index.html for all other routes
-app.get('*', (req, res) => {
+// SPA fallback - serve index.html for all other routes (Express 5 syntax)
+app.get('/{*splat}', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
