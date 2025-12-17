@@ -11,8 +11,9 @@ import {
 import { getUniqueOwners, getUniqueGroups, formatNotionId, findLane, findQuarter, getDatePositionInQuarter, sortStickyByDate, getQuarterFromDate, getTodayPosition, extractOutcome } from './utils';
 
 // Configuration for "Dummy Roadmap"
-const NOTION_PAGE_ID = '2cbd800083d680c8b22ced2c9c9b1cf2';
-const NOTION_API_KEY = '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';
+// Notion configuration - set these in .env.local
+const NOTION_PAGE_ID = import.meta.env.VITE_NOTION_PAGE_ID || '';
+const NOTION_API_KEY = import.meta.env.VITE_NOTION_API_KEY || '';
 
 export default function App() {
   // -- State --

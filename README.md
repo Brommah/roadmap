@@ -38,12 +38,18 @@ Open http://localhost:3000
 
 ### Configuration
 
-Edit `App.tsx` to set your Notion credentials:
-
-```typescript
-const NOTION_PAGE_ID = 'your-page-id-here';
-const NOTION_API_KEY = 'your-integration-token';
+1. Copy the example environment file:
+```bash
+cp .env.example .env.local
 ```
+
+2. Edit `.env.local` with your Notion credentials:
+```bash
+VITE_NOTION_PAGE_ID=your-page-id-here
+VITE_NOTION_API_KEY=ntn_your-integration-token
+```
+
+> **Note**: `.env.local` is gitignored and won't be committed.
 
 ## Notion Structure
 
