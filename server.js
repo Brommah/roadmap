@@ -8,6 +8,11 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 8080;
+const NOTION_API_KEY = process.env.NOTION_API_KEY;
+
+// Log startup info
+console.log(`Starting server...`);
+console.log(`NOTION_API_KEY configured: ${NOTION_API_KEY ? 'Yes (' + NOTION_API_KEY.substring(0, 10) + '...)' : 'NO!'}`);
 
 // Notion API Proxy
 app.use('/api/notion', createProxyMiddleware({
@@ -18,7 +23,8 @@ app.use('/api/notion', createProxyMiddleware({
   },
   onProxyReq: (proxyReq, req, res) => {
     // Add Notion headers
-    proxyReq.setHeader('Authorization', `Bearer ${process.env.NOTION_API_KEY}`);
+    console.log(`Proxying: ${req.method} ${req.path}`);
+    proxyReq.setHeader('Authorization', `Bearer ${NOTION_API_KEY}`);
     proxyReq.setHeader('Notion-Version', '2022-06-28');
   },
 }));
