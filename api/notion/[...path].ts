@@ -1,6 +1,4 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: any, res: any) {
   // Get the path after /api/notion/
   const { path } = req.query;
   const notionPath = Array.isArray(path) ? path.join('/') : path || '';
