@@ -11,9 +11,23 @@ import {
 import { getUniqueOwners, getUniqueGroups, formatNotionId, findLane, findQuarter, getDatePositionInQuarter, sortStickyByDate, getQuarterFromDate, getTodayPosition, extractOutcome } from './utils';
 
 // Configuration for "Dummy Roadmap"
-// Notion configuration - set these in .env.local
+// Notion configuration - set these in .env.local (dev) or Vercel env vars (prod)
 const NOTION_PAGE_ID = import.meta.env.VITE_NOTION_PAGE_ID || '';
+// API key is only needed for local dev - in production, serverless function uses server-side env var
 const NOTION_API_KEY = import.meta.env.VITE_NOTION_API_KEY || '';
+
+// Helper to get headers for Notion API calls
+// In dev: include Authorization header for Vite proxy
+// In prod: serverless function handles auth, but we still pass it for compatibility
+const getNotionHeaders = (): HeadersInit => {
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  };
+  if (NOTION_API_KEY) {
+    headers['Authorization'] = `Bearer ${NOTION_API_KEY}`;
+  }
+  return headers;
+};
 
 export default function App() {
   // -- State --

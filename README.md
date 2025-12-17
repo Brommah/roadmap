@@ -136,11 +136,16 @@ npm run build
 
 Output will be in the `dist/` folder.
 
-### Environment Variables
+### Environment Variables (Vercel)
 
-For production, set these environment variables:
-- `NOTION_API_KEY` - Your Notion integration token
-- `NOTION_PAGE_ID` - Your roadmap page ID
+Set these in your Vercel project settings:
+
+| Variable | Purpose | Exposed to |
+|----------|---------|------------|
+| `VITE_NOTION_PAGE_ID` | Your roadmap page ID | Client (browser) |
+| `NOTION_API_KEY` | Your Notion integration token | Server only |
+
+> **Important**: The page ID needs the `VITE_` prefix to be available in the browser. The API key does NOT need the prefix (it's used by the serverless function only).
 
 ## Contributing
 
