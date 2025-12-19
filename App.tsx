@@ -145,19 +145,17 @@ export default function App() {
               });
               if (syncChildrenRes.ok) {
                 const syncChildrenData = await syncChildrenRes.json();
-                console.log(`Synced block children:`, syncChildrenData.results.map((c: any) => ({
-                  type: c.type,
-                  text: c[c.type]?.rich_text?.map((rt: any) => rt.plain_text).join('') || ''
-                })));
-                
-                // First pass: find all deliverable indices
+                // First pass: find all deliverable/checkpoint indices
+                // Look for heading_3 blocks with "Checkpoint" OR paragraphs with "Deliverable"
                 const deliverableIndices: number[] = [];
                 syncChildrenData.results.forEach((child: any, idx: number) => {
                   const childType = child.type;
                   const childRichText = child[childType]?.rich_text;
                   if (Array.isArray(childRichText)) {
                     const childText = childRichText.map((rt: any) => rt.plain_text).join('');
-                    if (childText.toLowerCase().startsWith('deliverable')) {
+                    // Match "Checkpoint" in heading_3 OR "Deliverable" in any block
+                    if ((childType === 'heading_3' && childText.toLowerCase().includes('checkpoint')) ||
+                        childText.toLowerCase().startsWith('deliverable')) {
                       deliverableIndices.push(idx);
                     }
                   }
@@ -171,7 +169,11 @@ export default function App() {
                   const deliverableBlock = syncChildrenData.results[startIdx];
                   const deliverableRichText = deliverableBlock[deliverableBlock.type]?.rich_text || [];
                   const deliverableText = deliverableRichText.map((rt: any) => rt.plain_text).join('');
-                  const deliverableTitle = deliverableText.replace(/^deliverable[:\s]*\d*[:\s]*/i, '').trim();
+                  // Handle both "Checkpoint X: Title" and "Deliverable: Title" formats
+                  let deliverableTitle = deliverableText
+                    .replace(/^checkpoint\s*\d*[:\s]*/i, '')
+                    .replace(/^deliverable[:\s]*\d*[:\s]*/i, '')
+                    .trim();
                   
                   if (deliverableTitle.length <= 3) continue;
                   
