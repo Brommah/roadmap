@@ -37,13 +37,11 @@ export const CEF_LANES: Lane[] = [
   { id: 'lane-a8b', group: 'Product & Demos', title: 'Gaming Demo (A8b)', subtitle: 'Gaming Use Case', colorClass: 'bg-orange-50', headerColorClass: 'bg-orange-500', icon: <Rocket /> },
 
   // --- B3: MARKETING ---
-  { id: 'lane-b3', group: 'B3: Marketing', title: 'Marketing (B3)', subtitle: 'Product Marketing', colorClass: 'bg-blue-50', headerColorClass: 'bg-blue-600', icon: <Users />, wikiUrl: 'https://www.notion.so/cere/CEF-AI-Product-Marketing-B3-293d800083d680fb9b48e6a9b47aaf77' },
   { id: 'lane-s0', group: 'B3: Marketing', title: 'Content (S0)', subtitle: 'Core Content', colorClass: 'bg-blue-50', headerColorClass: 'bg-blue-500', icon: <Users />, wikiUrl: 'https://www.notion.so/cere/CEF-AI-Core-Product-Content-Wiki-S0-262d800083d68042ac62d0773842b54b' },
   { id: 'lane-s2', group: 'B3: Marketing', title: 'CEF Website (S2)', subtitle: 'Vertical Pages', colorClass: 'bg-blue-50', headerColorClass: 'bg-blue-500', icon: <Globe />, wikiUrl: 'https://www.notion.so/cere/CEF-Website-Vertical-Pages-S2-2ccd800083d68020891ed6d9f4061b3e' },
   { id: 'lane-s3', group: 'B3: Marketing', title: 'Campaigns (S3)', subtitle: 'Marketing Campaigns', colorClass: 'bg-blue-50', headerColorClass: 'bg-blue-500', icon: <Rocket />, wikiUrl: 'https://www.notion.so/cere/CEF-Campaigns-S3-2ccd800083d6808e9b92df0c93146347' },
 
   // --- B4: SALES ---
-  { id: 'lane-b4', group: 'B4: Sales', title: 'Sales (B4)', subtitle: 'Enterprise Sales', colorClass: 'bg-green-50', headerColorClass: 'bg-green-600', icon: <Handshake />, wikiUrl: 'https://www.notion.so/cere/CEF-AI-Enterprise-G2M-Wiki-B4-2b0d800083d68073a70bc1b21f8d84d5' },
   { id: 'lane-s4', group: 'B4: Sales', title: 'Enterprise GTM (S4)', subtitle: 'Go-to-Market', colorClass: 'bg-green-50', headerColorClass: 'bg-green-500', icon: <Handshake /> },
   { id: 'lane-s1', group: 'B4: Sales', title: 'CEF Demos (S1)', subtitle: 'Sales Collateral', colorClass: 'bg-green-50', headerColorClass: 'bg-green-500', icon: <Rocket />, wikiUrl: 'https://www.notion.so/cere/CEF-Demos-S1-2ccd800083d680cc883bf8e4fa986e04' },
 
