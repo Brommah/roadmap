@@ -1106,17 +1106,6 @@ export default function App() {
                 <option value="Unassigned">Unassigned</option>
               </select>
 
-              {/* Stream Filter (Ghost) */}
-               <select 
-                value={groupFilter}
-                onChange={(e) => setGroupFilter(e.target.value)}
-                className="px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg bg-transparent border-none outline-none cursor-pointer appearance-none"
-              >
-                <option value="all">All Streams</option>
-                {uniqueGroups.map(grp => (
-                  <option key={grp} value={grp}>{grp}</option>
-                ))}
-              </select>
             </div>
          </div>
 
