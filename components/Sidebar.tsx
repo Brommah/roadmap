@@ -162,24 +162,26 @@ export const Sidebar: React.FC<SidebarProps> = ({ stickies, activeView, onReset 
           </section>
         )}
 
-        {/* The Legend */}
-        <section className="space-y-3">
-          <h3 className="font-bold text-slate-900 flex items-center gap-2">
-            <Eye className="text-slate-500" size={18} />
-            {activeView === 'cef' ? 'Streams' : 'Lanes'}
-          </h3>
-          <div className="space-y-2">
-            {LANES.map(lane => (
-              <div key={lane.id} className="flex items-center gap-2 p-2 rounded-md border border-slate-100 bg-slate-50">
-                <div className={`w-3 h-3 rounded-full ${lane.headerColorClass.replace('bg-', 'bg-opacity-50 ')}`}></div>
-                <div>
-                  <div className="text-xs font-bold text-slate-800">{lane.title}</div>
-                  <div className="text-[10px] text-slate-500 uppercase">{lane.subtitle}</div>
+        {/* The Legend - Only show for CEF */}
+        {activeView === 'cef' && (
+          <section className="space-y-3">
+            <h3 className="font-bold text-slate-900 flex items-center gap-2">
+              <Eye className="text-slate-500" size={18} />
+              Streams
+            </h3>
+            <div className="space-y-2">
+              {LANES.map(lane => (
+                <div key={lane.id} className="flex items-center gap-2 p-2 rounded-md border border-slate-100 bg-slate-50">
+                  <div className={`w-3 h-3 rounded-full ${lane.headerColorClass.replace('bg-', 'bg-opacity-50 ')}`}></div>
+                  <div>
+                    <div className="text-xs font-bold text-slate-800">{lane.title}</div>
+                    <div className="text-[10px] text-slate-500 uppercase">{lane.subtitle}</div>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        </section>
+              ))}
+            </div>
+          </section>
+        )}
 
       </div>
 
