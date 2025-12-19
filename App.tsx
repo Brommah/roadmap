@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { StickyCard } from './components/StickyCard';
 import { Modal } from './components/Modal';
-import { LANES, QUARTERS, INITIAL_STICKIES, INITIAL_MILESTONES } from './constants';
+import { CEF_LANES, CERE_LANES, QUARTERS, INITIAL_STICKIES, INITIAL_MILESTONES } from './constants';
 import { StickyNote, Milestone, StickyStatus, Lane } from './types';
 import { 
   Plus, Flag, Search, ChevronDown, ChevronRight, Save, Trash2, 
@@ -38,6 +38,9 @@ export default function App() {
   const [stickies, setStickies] = useState<StickyNote[]>(INITIAL_STICKIES);
   const [milestones, setMilestones] = useState<Milestone[]>(INITIAL_MILESTONES);
   
+  // Get lanes based on active view
+  const LANES = activeView === 'cef' ? CEF_LANES : CERE_LANES;
+  
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -51,7 +54,7 @@ export default function App() {
 
   // Collapsed states for groups (lanes don't collapse anymore)
   // Start with all collapsed, then expand groups with content after data loads
-  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => new Set(LANES.map(l => l.group)));
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => new Set([...CEF_LANES, ...CERE_LANES].map(l => l.group)));
   const [hasInitializedGroups, setHasInitializedGroups] = useState(false);
 
   // Modal States

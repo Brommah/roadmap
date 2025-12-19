@@ -13,7 +13,8 @@ export const QUARTERS: Quarter[] = [
   { id: '2027-Q3', label: 'Q3', year: 2027 },
 ];
 
-export const LANES: Lane[] = [
+// CEF Lanes - Used when CEF view is active
+export const CEF_LANES: Lane[] = [
   // --- CORE INFRASTRUCTURE ---
   { id: 'lane-a1', group: 'Core Infrastructure', title: 'Data Onboarding (A1)', subtitle: 'Ingestion Service', colorClass: 'bg-blue-50', headerColorClass: 'bg-blue-600', icon: <Database /> },
   { id: 'lane-a2', group: 'Core Infrastructure', title: 'ROB (A2)', subtitle: 'Orchestration Builder', colorClass: 'bg-blue-50', headerColorClass: 'bg-blue-700', icon: <Layout /> },
@@ -49,6 +50,31 @@ export const LANES: Lane[] = [
   { id: 'lane-dev-gtm', group: 'Team & Readiness', title: 'Developer GTM', subtitle: 'Strategy', colorClass: 'bg-slate-100', headerColorClass: 'bg-slate-500', icon: <Users /> },
   { id: 'lane-int-content', group: 'Team & Readiness', title: 'Integration Content', subtitle: 'Content', colorClass: 'bg-yellow-50', headerColorClass: 'bg-yellow-500', icon: <Users /> },
 ];
+
+// CERE Lanes - Used when CERE view is active
+export const CERE_LANES: Lane[] = [
+  // --- BLOCKCHAIN / PROTOCOL ---
+  { id: 'lane-dac', group: 'Blockchain / Protocol', title: 'DAC & Inspection', subtitle: 'Data Availability', colorClass: 'bg-purple-50', headerColorClass: 'bg-purple-600', icon: <Database /> },
+  { id: 'lane-blockchain', group: 'Blockchain / Protocol', title: 'Blockchain', subtitle: 'Core Chain', colorClass: 'bg-purple-50', headerColorClass: 'bg-purple-700', icon: <Activity /> },
+  { id: 'lane-payouts', group: 'Blockchain / Protocol', title: 'Payouts', subtitle: 'Rewards System', colorClass: 'bg-purple-50', headerColorClass: 'bg-purple-600', icon: <DollarSign /> },
+
+  // --- DDC ---
+  { id: 'lane-ddc', group: 'DDC', title: 'DDC Core', subtitle: 'Decentralized Data', colorClass: 'bg-sky-50', headerColorClass: 'bg-sky-600', icon: <Database /> },
+  { id: 'lane-ddc-nodes', group: 'DDC', title: 'DDC Nodes', subtitle: 'Node Operations', colorClass: 'bg-sky-50', headerColorClass: 'bg-sky-700', icon: <Cpu /> },
+
+  // --- TOOLS ---
+  { id: 'lane-cross-chain', group: 'Tools', title: 'Cross-Chain', subtitle: 'Interoperability', colorClass: 'bg-orange-50', headerColorClass: 'bg-orange-500', icon: <Activity /> },
+  { id: 'lane-indexer', group: 'Tools', title: 'Blockchain Indexer', subtitle: 'Data Indexing', colorClass: 'bg-orange-50', headerColorClass: 'bg-orange-600', icon: <Database /> },
+
+  // --- BUSINESS ---
+  { id: 'lane-marketing', group: 'Business', title: 'Marketing (B4)', subtitle: 'Brand & Comms', colorClass: 'bg-green-50', headerColorClass: 'bg-green-600', icon: <Users /> },
+  { id: 'lane-content', group: 'Business', title: 'Content Distribution', subtitle: 'Media Delivery', colorClass: 'bg-green-50', headerColorClass: 'bg-green-600', icon: <Globe /> },
+  { id: 'lane-community', group: 'Business', title: 'Community', subtitle: 'Engagement', colorClass: 'bg-green-50', headerColorClass: 'bg-green-600', icon: <Users /> },
+  { id: 'lane-growth', group: 'Business', title: 'Growth', subtitle: 'Expansion', colorClass: 'bg-green-50', headerColorClass: 'bg-green-700', icon: <Rocket /> },
+];
+
+// Backwards compatibility - default to CEF lanes
+export const LANES = CEF_LANES;
 
 // START EMPTY - Populated via API
 export const INITIAL_MILESTONES: Milestone[] = [];
