@@ -129,7 +129,7 @@ export default function App() {
           
           // Treat child_page as H2 (lane marker)
           if (type === 'child_page' && textContent) {
-            const lane = findLane(textContent);
+            const lane = findLane(textContent, LANES);
             if (lane) {
               currentLaneId = lane.id;
             }
@@ -472,7 +472,7 @@ export default function App() {
           }
           // H2 = Lane identifier, and possibly also a deliverable
           else if (type === 'heading_2') {
-            const lane = findLane(textContent);
+            const lane = findLane(textContent, LANES);
             
             // Check if this is a "lane header only" format like "A8b - Gaming Use Case (A8b)"
             // or "S1 - Demo Sales" - using dash separator
@@ -608,7 +608,7 @@ export default function App() {
             // Skip if it was a lane header format (CODE - Name pattern)
             if (type === 'heading_2') {
               const isLaneHeaderFormat = /^[A-Z]\d+[a-z]?\s*[-–]\s+/i.test(textContent);
-              if (isLaneHeaderFormat && findLane(textContent)) {
+              if (isLaneHeaderFormat && findLane(textContent, LANES)) {
                 continue; // Already handled above
               }
             }

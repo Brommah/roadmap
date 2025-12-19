@@ -112,48 +112,65 @@ export function getQuarterFromDate(deliveryDate: string | undefined): string | u
   return exists ? quarterId : undefined;
 }
 
-export function findLane(text: string): Lane | undefined {
+export function findLane(text: string, lanes: Lane[]): Lane | undefined {
   // Clean text: remove parens, lower case
   const clean = text.toLowerCase().replace(/\(.*\)/, '').trim();
   const textUpper = text.toUpperCase();
   
   // Keyword mappings for H2 headings that should route to specific lanes
-  const KEYWORD_LANE_MAP: Record<string, string> = {
-    'demo sales': 'lane-s1',
-    'cef demo': 'lane-s1',
-    's1': 'lane-s1',
-    'website sales': 'lane-s2',
-    'cef website': 'lane-s2',
-    's2': 'lane-s2',
-    'cef icp': 'lane-s3',
-    'icp': 'lane-s3',
-    's3': 'lane-s3',
-    'cef campaigns': 'lane-s4',
-    'campaigns': 'lane-s4',
-    's4': 'lane-s4',
-    'product marketing': 'lane-b3',
-    'b3': 'lane-b3',
-    'enterprise g2m': 'lane-b4',
-    'g2m wiki': 'lane-b4',
-    'b4': 'lane-b4',
+  // Works for both CEF and CERE lanes
+  const KEYWORD_LANE_MAP: Record<string, string[]> = {
+    // CEF keywords
+    'demo sales': ['lane-s1'],
+    'cef demo': ['lane-s1'],
+    's1': ['lane-s1'],
+    'website sales': ['lane-s2'],
+    'cef website': ['lane-s2'],
+    's2': ['lane-s2'],
+    'cef icp': ['lane-s3'],
+    's3': ['lane-s3'],
+    'cef campaigns': ['lane-s4'],
+    's4': ['lane-s4'],
+    'product marketing': ['lane-b3'],
+    'b3': ['lane-b3'],
+    'enterprise g2m': ['lane-b4'],
+    'g2m wiki': ['lane-b4'],
+    // CERE keywords
+    'dac': ['lane-dac'],
+    'inspection': ['lane-dac'],
+    'blockchain': ['lane-blockchain'],
+    'payouts': ['lane-payouts'],
+    'payout': ['lane-payouts'],
+    'ddc core': ['lane-ddc'],
+    'ddc node': ['lane-ddc-nodes'],
+    'cross-chain': ['lane-cross-chain'],
+    'cross chain': ['lane-cross-chain'],
+    'indexer': ['lane-indexer'],
+    'marketing': ['lane-marketing', 'lane-b4'],
+    'b4': ['lane-marketing', 'lane-b4'],
+    'content distribution': ['lane-content'],
+    'community': ['lane-community'],
+    'growth': ['lane-growth'],
   };
   
   // Check keyword mappings first
   const textLower = text.toLowerCase();
-  for (const [keyword, laneId] of Object.entries(KEYWORD_LANE_MAP)) {
+  for (const [keyword, laneIds] of Object.entries(KEYWORD_LANE_MAP)) {
     if (textLower.includes(keyword)) {
-      const lane = LANES.find(l => l.id === laneId);
-      if (lane) return lane;
+      for (const laneId of laneIds) {
+        const lane = lanes.find(l => l.id === laneId);
+        if (lane) return lane;
+      }
     }
   }
   
   // Try exact ID match first
-  let found = LANES.find(l => l.id === text);
+  let found = lanes.find(l => l.id === text);
   if (found) return found;
 
-  // Try Code match (e.g. "A1", "A8b", "A8.1", "S1", "S2")
+  // Try Code match (e.g. "A1", "A8b", "A8.1", "S1", "S2", "B4")
   // Extract codes from lanes and sort by length (longest first) to prioritize specific matches
-  const lanesWithCodes = LANES.map(l => {
+  const lanesWithCodes = lanes.map(l => {
     const code = l.title.match(/\(([A-Z][0-9]+[a-z]?(?:\.\d+)?)\)/i)?.[1]?.toUpperCase();
     return { lane: l, code };
   }).filter(lc => lc.code);
@@ -168,7 +185,7 @@ export function findLane(text: string): Lane | undefined {
   }
 
   // Try Name match
-  return LANES.find(l => {
+  return lanes.find(l => {
     const lClean = l.title.toLowerCase().replace(/\(.*\)/, '').trim();
     return lClean.includes(clean) || clean.includes(lClean);
   });
