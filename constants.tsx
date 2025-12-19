@@ -70,34 +70,16 @@ export interface WikiCategory {
 
 export const CERE_WIKI_LINKS: WikiCategory[] = [
   {
-    name: 'Strategy & Architecture',
-    links: [
-      { title: 'Miro Information Architecture', url: 'https://miro.com/app/board/uXjVIJA7Uo4=/?moveToWidget=3458764651579171776&cot=14' },
-      { title: 'Bravo Roadmap Strategy Wiki', url: 'https://www.notion.so/cere/Bravo-Roadmap-strategy-wiki-2a3d800083d6805a9482e2ac27d3b8bc' },
-      { title: 'Bravo Roadmap (Miro)', url: 'https://miro.com/app/board/uXjVJst8IcE=/' },
-    ],
-  },
-  {
     name: 'Blockchain / Protocol',
     links: [
       { title: 'DAC & Inspection Wiki', url: 'https://www.notion.so/cere/DAC-Inspection-Wiki-128d800083d680b2b6cbfb8fa99a8b0d', owner: 'Yahor Tsaryk' },
-      { title: 'DAC Collection', url: 'https://www.notion.so/cere/Collection-2bdd800083d680b59898f5b70bdfe419' },
-      { title: 'DAC Aggregation', url: 'https://www.notion.so/cere/Aggregation-23ed800083d680908f3ad1c60c84456e' },
-      { title: 'DAC Inspection', url: 'https://www.notion.so/cere/Inspection-23ed800083d6801f8bbbf7b9266320fc' },
-      { title: 'DAC How-to Guides', url: 'https://www.notion.so/cere/Guides-287d800083d68095b0e7c39575274b94' },
-      { title: 'Payouts', url: 'https://www.notion.so/cere/Payouts-23ed800083d6803fa0aefe968ebcbb85' },
       { title: 'Blockchain Wiki', url: 'https://www.notion.so/cere/Blockchain-Wiki-efc6a4c557d548e9a8d12765506a9078' },
-      { title: 'DDC', url: 'https://www.notion.so/cere/DDC-fffd800083d68009825bf08802af38d8', owner: 'Yahor Tsaryk' },
-      { title: 'Cluster Governance Pallet', url: 'https://www.notion.so/cere/Cluster-Governance-Pallet-e6c70006d8f44cc493c5e1cc194916c0', owner: 'Yahor Tsaryk' },
-      { title: 'Cluster Customers Deposits Contract', url: 'https://www.notion.so/cere/ADR-Cluster-Customers-Deposits-Contract-222d800083d680f1a4cfde368c7beda4' },
-      { title: 'DDC Payouts Wiki', url: 'https://www.notion.so/cere/DDC-Payouts-Wiki-bc7059f7e0e548e09a1e1f6ac3a1b201', owner: 'Yahor Tsaryk' },
     ],
   },
   {
     name: 'DDC',
     links: [
-      { title: 'DDC Overview', url: 'https://www.notion.so/cere/DDC-3830f70c2c014a18980b38bb3f47e908', owner: 'Sergey Poluyan' },
-      { title: 'DDC Core Wiki', url: 'https://www.notion.so/cere/DDC-Core-Wiki-1792e3b4b89e4138bbd82d67a9eb44e5' },
+      { title: 'DDC', url: 'https://www.notion.so/cere/DDC-3830f70c2c014a18980b38bb3f47e908', owner: 'Sergey Poluyan' },
     ],
   },
   {
@@ -115,7 +97,6 @@ export const CERE_WIKI_LINKS: WikiCategory[] = [
       { title: 'Content Distribution Knowledge Base', url: 'https://www.notion.so/cere/Content-Distribution-Knowledge-Base-153d800083d680579c50d723d7cc26f8' },
       { title: 'Cere Core Content', url: 'https://www.notion.so/cere/Cere-Core-Content-Reset-Stage-2bfd800083d680e3b968ccf75cfd0c7f' },
       { title: 'Cere Network DAO Wiki', url: 'https://www.notion.so/cere/Cere-Network-DAO-Wiki-2a4d800083d680d89eeded4d4240b346', owner: 'Martijn' },
-      { title: 'Growth Wiki', url: 'https://www.notion.so/cere/Growth-Wiki-74b8593d84714ec6ba9c771863167f58', owner: 'Bren' },
       { title: 'Developer Growth Wiki', url: 'https://www.notion.so/cere/Developer-Growth-Wiki-5c25946239e641dcb71df8d0931391a6' },
       { title: 'Partner Growth Wiki', url: 'https://www.notion.so/cere/Partner-Growth-Wiki-256d800083d6801e9989dffa76ca7389' },
       { title: 'Community Knowledge Base', url: 'https://www.notion.so/cere/Community-knowledge-base-e18492fa0656496994f7359e9f8b79c1' },
