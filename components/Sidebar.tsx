@@ -1,14 +1,17 @@
 import React from 'react';
-import { Target, Eye, AlertTriangle, ShieldCheck, Copy, Activity, CheckCircle, AlertCircle, RefreshCw } from 'lucide-react';
-import { LANES } from '../constants';
+import { Target, Eye, AlertTriangle, ShieldCheck, Copy, Activity, CheckCircle, AlertCircle, RefreshCw, ExternalLink, BookOpen, ChevronDown, ChevronRight } from 'lucide-react';
+import { LANES, CERE_WIKI_LINKS } from '../constants';
 import { StickyNote } from '../types';
 
 interface SidebarProps {
   stickies: StickyNote[];
+  activeView: 'cef' | 'cere';
   onReset?: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ stickies, onReset }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ stickies, activeView, onReset }) => {
+  const [expandedCategories, setExpandedCategories] = React.useState<Set<string>>(new Set(CERE_WIKI_LINKS.map(c => c.name)));
+
   const handleCopyPrompt = () => {
     const prompt = `Create a detailed Multi-Year Roadmap Board for 2026 and 2027.\nStructure:\nColumns: Q1-Q4 2026, Q1-Q4 2027.\nRows: 1. Product Features, 2. Core Platform, 3. Commercial, 4. Partnerships, 5. Team.\nContent: High density, past tense verbs (outcomes only). No "planning" or "research".`;
     navigator.clipboard.writeText(prompt);
@@ -16,6 +19,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ stickies, onReset }) => {
     const btn = document.getElementById('copy-btn');
     if (btn) btn.innerText = "Copied!";
     setTimeout(() => { if(btn) btn.innerText = "Copy Miro AI Prompt" }, 2000);
+  };
+
+  const toggleCategory = (name: string) => {
+    setExpandedCategories(prev => {
+      const next = new Set(prev);
+      if (next.has(name)) {
+        next.delete(name);
+      } else {
+        next.add(name);
+      }
+      return next;
+    });
   };
 
   const healthStats = {
@@ -29,7 +44,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ stickies, onReset }) => {
     <div className="w-80 bg-white border-r border-slate-200 h-full flex flex-col overflow-y-auto shrink-0 shadow-xl z-20">
       <div className="p-6 bg-slate-900 text-white">
         <h1 className="text-xl font-bold mb-1">Outcome Roadmap</h1>
-        <p className="text-slate-400 text-xs uppercase tracking-wider">The "Fred" Protocol</p>
+        <p className="text-slate-400 text-xs uppercase tracking-wider">
+          {activeView === 'cef' ? 'CEF Overview' : 'CERE Overview'}
+        </p>
       </div>
 
       <div className="p-6 space-y-8 flex-1">
@@ -60,44 +77,96 @@ export const Sidebar: React.FC<SidebarProps> = ({ stickies, onReset }) => {
           </div>
         </section>
 
-        {/* The Why */}
-        <section className="space-y-3">
-          <h3 className="font-bold text-slate-900 flex items-center gap-2">
-            <AlertTriangle className="text-orange-500" size={18} />
-            Why this exists
-          </h3>
-          <p className="text-sm text-slate-600 leading-relaxed">
-            To eliminate the <strong className="text-slate-800">"Black Box of Engineering"</strong> and prove we aren't just "busy," but <strong>productive</strong>.
-          </p>
-        </section>
+        {/* CERE Wiki Links - Only show when CERE view is active */}
+        {activeView === 'cere' && (
+          <section className="space-y-3">
+            <h3 className="font-bold text-slate-900 flex items-center gap-2">
+              <BookOpen className="text-blue-500" size={18} />
+              Knowledge Base
+            </h3>
+            <div className="space-y-2">
+              {CERE_WIKI_LINKS.map(category => (
+                <div key={category.name} className="border border-slate-100 rounded-lg overflow-hidden">
+                  <button
+                    onClick={() => toggleCategory(category.name)}
+                    className="w-full flex items-center justify-between p-2 bg-slate-50 hover:bg-slate-100 transition-colors"
+                  >
+                    <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">{category.name}</span>
+                    {expandedCategories.has(category.name) ? (
+                      <ChevronDown size={14} className="text-slate-400" />
+                    ) : (
+                      <ChevronRight size={14} className="text-slate-400" />
+                    )}
+                  </button>
+                  {expandedCategories.has(category.name) && (
+                    <div className="p-2 space-y-1 bg-white">
+                      {category.links.map(link => (
+                        <a
+                          key={link.url}
+                          href={link.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 p-1.5 rounded hover:bg-slate-50 group transition-colors"
+                        >
+                          <ExternalLink size={12} className="text-slate-300 group-hover:text-blue-500 shrink-0" />
+                          <div className="min-w-0 flex-1">
+                            <div className="text-xs text-slate-700 group-hover:text-blue-600 truncate">{link.title}</div>
+                            {link.owner && (
+                              <div className="text-[10px] text-slate-400">@{link.owner}</div>
+                            )}
+                          </div>
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
-        {/* The Rules */}
-        <section className="space-y-3">
-          <h3 className="font-bold text-slate-900 flex items-center gap-2">
-            <ShieldCheck className="text-blue-500" size={18} />
-            Definition of Done
-          </h3>
-          <ul className="text-sm space-y-2 text-slate-600">
-            <li className="flex gap-2 items-start">
-              <CheckCircle size={14} className="text-green-500 mt-0.5" />
-              <span>Past tense verbs only (e.g., "Deployed").</span>
-            </li>
-            <li className="flex gap-2 items-start">
-              <CheckCircle size={14} className="text-green-500 mt-0.5" />
-              <span>Every card needs an <strong>Owner</strong>.</span>
-            </li>
-            <li className="flex gap-2 items-start">
-              <AlertCircle size={14} className="text-red-500 mt-0.5" />
-              <span>No "Researching" or "Planning".</span>
-            </li>
-          </ul>
-        </section>
+        {/* The Why - Only show for CEF */}
+        {activeView === 'cef' && (
+          <section className="space-y-3">
+            <h3 className="font-bold text-slate-900 flex items-center gap-2">
+              <AlertTriangle className="text-orange-500" size={18} />
+              Why this exists
+            </h3>
+            <p className="text-sm text-slate-600 leading-relaxed">
+              To eliminate the <strong className="text-slate-800">"Black Box of Engineering"</strong> and prove we aren't just "busy," but <strong>productive</strong>.
+            </p>
+          </section>
+        )}
+
+        {/* The Rules - Only show for CEF */}
+        {activeView === 'cef' && (
+          <section className="space-y-3">
+            <h3 className="font-bold text-slate-900 flex items-center gap-2">
+              <ShieldCheck className="text-blue-500" size={18} />
+              Definition of Done
+            </h3>
+            <ul className="text-sm space-y-2 text-slate-600">
+              <li className="flex gap-2 items-start">
+                <CheckCircle size={14} className="text-green-500 mt-0.5" />
+                <span>Past tense verbs only (e.g., "Deployed").</span>
+              </li>
+              <li className="flex gap-2 items-start">
+                <CheckCircle size={14} className="text-green-500 mt-0.5" />
+                <span>Every card needs an <strong>Owner</strong>.</span>
+              </li>
+              <li className="flex gap-2 items-start">
+                <AlertCircle size={14} className="text-red-500 mt-0.5" />
+                <span>No "Researching" or "Planning".</span>
+              </li>
+            </ul>
+          </section>
+        )}
 
         {/* The Legend */}
         <section className="space-y-3">
           <h3 className="font-bold text-slate-900 flex items-center gap-2">
             <Eye className="text-slate-500" size={18} />
-            The 5 Streams
+            {activeView === 'cef' ? 'Streams' : 'Lanes'}
           </h3>
           <div className="space-y-2">
             {LANES.map(lane => (

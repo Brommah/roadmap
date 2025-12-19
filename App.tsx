@@ -10,9 +10,12 @@ import {
 } from 'lucide-react';
 import { getUniqueOwners, getUniqueGroups, formatNotionId, findLane, findQuarter, getDatePositionInQuarter, sortStickyByDate, getQuarterFromDate, getTodayPosition, extractOutcome } from './utils';
 
-// Configuration for "Dummy Roadmap"
 // Notion configuration - set these in .env.local (dev) or Vercel env vars (prod)
-const NOTION_PAGE_ID = import.meta.env.VITE_NOTION_PAGE_ID || '';
+// Page IDs for each view
+const PAGE_IDS = {
+  cef: import.meta.env.VITE_NOTION_PAGE_ID || '2cbd800083d680c8b22ced2c9c9b1cf2',
+  cere: '2ced800083d6807bba83f09eda27d75d',
+};
 // API key is only needed for local dev - in production, serverless function uses server-side env var
 const NOTION_API_KEY = import.meta.env.VITE_NOTION_API_KEY || '';
 
@@ -31,6 +34,7 @@ const getNotionHeaders = (): HeadersInit => {
 
 export default function App() {
   // -- State --
+  const [activeView, setActiveView] = useState<'cef' | 'cere'>('cef');
   const [stickies, setStickies] = useState<StickyNote[]>(INITIAL_STICKIES);
   const [milestones, setMilestones] = useState<Milestone[]>(INITIAL_MILESTONES);
   
@@ -71,7 +75,7 @@ export default function App() {
       setError(null);
       
       try {
-        const pageId = formatNotionId(NOTION_PAGE_ID);
+        const pageId = formatNotionId(PAGE_IDS[activeView]);
         // Use Vite proxy to call Notion API directly
         const response = await fetch(`/api/notion/v1/blocks/${pageId}/children?page_size=100`, {
           method: 'GET',
@@ -748,7 +752,7 @@ export default function App() {
     }
 
     fetchNotionData();
-  }, []);
+  }, [activeView]);
 
 
   // -- Derived Data --
@@ -1057,12 +1061,38 @@ export default function App() {
          {/* Left: Logo + Filters */}
          <div className="flex items-center gap-8">
             {/* Logo */}
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 bg-gray-900 rounded-lg flex items-center justify-center">
-                <FolderOpen size={16} className="text-white" />
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 bg-gray-900 rounded-lg flex items-center justify-center">
+                  <FolderOpen size={16} className="text-white" />
               </div>
               <div>
-                <h1 className="text-base font-semibold text-gray-900 leading-tight">Outcome Roadmap</h1>
+                  <h1 className="text-base font-semibold text-gray-900 leading-tight">Outcome Roadmap</h1>
+              </div>
+            </div>
+
+              {/* CEF/CERE Toggle */}
+              <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
+                <button
+                  onClick={() => setActiveView('cef')}
+                  className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
+                    activeView === 'cef'
+                      ? 'bg-gray-900 text-white'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  CEF
+                </button>
+                <button
+                  onClick={() => setActiveView('cere')}
+                  className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
+                    activeView === 'cere'
+                      ? 'bg-gray-900 text-white'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  CERE
+                </button>
               </div>
             </div>
 
