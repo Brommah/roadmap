@@ -1,11 +1,11 @@
 export default async function handler(req, res) {
-  // Get the path after /api/notion/
-  const url = new URL(req.url, `http://${req.headers.host}`);
-  const fullPath = url.pathname.replace('/api/notion/', '');
-  const queryString = url.search;
+  // Extract the path from the URL - everything after /api/notion/
+  const urlPath = req.url || '';
+  const notionPath = urlPath.replace(/^\/api\/notion\/?/, '');
   
-  const notionUrl = `https://api.notion.com/${fullPath}${queryString}`;
+  const notionUrl = `https://api.notion.com/${notionPath}`;
   
+  console.log('Request URL:', req.url);
   console.log('Proxying to:', notionUrl);
   console.log('API Key exists:', !!process.env.NOTION_API_KEY);
   
@@ -27,4 +27,3 @@ export default async function handler(req, res) {
     res.status(500).json({ error: error.message });
   }
 }
-
