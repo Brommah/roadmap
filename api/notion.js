@@ -1,11 +1,20 @@
 export default async function handler(req, res) {
-  // Extract the path from the URL - everything after /api/notion/
-  const urlPath = req.url || '';
-  const notionPath = urlPath.replace(/^\/api\/notion\/?/, '');
+  // Extract the path - Vercel passes it as query.path from the rewrite
+  const pathSegments = req.query.path;
+  const notionPath = Array.isArray(pathSegments) ? pathSegments.join('/') : (pathSegments || '');
   
-  const notionUrl = `https://api.notion.com/${notionPath}`;
+  // Build query string WITHOUT the 'path' parameter (added by Vercel rewrite)
+  const queryParams = new URLSearchParams();
+  for (const [key, value] of Object.entries(req.query)) {
+    if (key !== 'path') {
+      queryParams.append(key, value);
+    }
+  }
+  const queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
   
-  console.log('Request URL:', req.url);
+  const notionUrl = `https://api.notion.com/${notionPath}${queryString}`;
+  
+  console.log('Notion Path:', notionPath);
   console.log('Proxying to:', notionUrl);
   console.log('API Key exists:', !!process.env.NOTION_API_KEY);
   
