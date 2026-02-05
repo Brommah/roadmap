@@ -305,26 +305,31 @@ export default function App() {
                         }
                       }
                       
-                      // ALWAYS fetch toggle children to get child_page titles
+                      // ALWAYS fetch toggle children to get content (pages, text, nested toggles)
+                      const toggleChildContent: string[] = [];
                       if (siblingBlock.has_children) {
                         try {
-                          const toggleChildrenRes = await fetch(`/api/notion/v1/blocks/${siblingBlock.id}/children?page_size=10`, {
+                          const toggleChildrenRes = await fetch(`/api/notion/v1/blocks/${siblingBlock.id}/children?page_size=50`, {
                             headers: { 'Authorization': `Bearer ${NOTION_API_KEY}` }
                           });
                           if (toggleChildrenRes.ok) {
                             const toggleChildrenData = await toggleChildrenRes.json();
                             console.log('Toggle children:', toggleChildrenData.results.map((c: any) => ({
                               type: c.type,
-                              title: c.child_page?.title || c.link_to_page?.page_id || ''
+                              title: c.child_page?.title || c.link_to_page?.page_id || '',
+                              text: c[c.type]?.rich_text?.map((rt: any) => rt.plain_text).join('') || ''
                             })));
                             
                             for (const toggleChild of toggleChildrenData.results) {
                               if (toggleChild.type === 'child_page') {
                                 const pageName = toggleChild.child_page?.title || '';
                                 if (pageName && pageName !== 'Untitled') {
-                                  toggleText = pageName;
-                                  toggleLink = `https://www.notion.so/${toggleChild.id.replace(/-/g, '')}`;
-                                  break;
+                                  if (!toggleText || toggleText === 'Untitled') {
+                                    toggleText = pageName;
+                                    toggleLink = `https://www.notion.so/${toggleChild.id.replace(/-/g, '')}`;
+                                  } else {
+                                    toggleChildContent.push(`  📄 ${pageName}`);
+                                  }
                                 }
                               } else if (toggleChild.type === 'link_to_page') {
                                 // Fetch the linked page to get its title
@@ -338,13 +343,62 @@ export default function App() {
                                       const linkedPageData = await linkedPageRes.json();
                                       const titleProp = linkedPageData.properties?.title?.title || linkedPageData.properties?.Name?.title;
                                       if (titleProp && titleProp.length > 0) {
-                                        toggleText = titleProp.map((t: any) => t.plain_text).join('');
-                                        toggleLink = `https://www.notion.so/${linkedPageId.replace(/-/g, '')}`;
-                                        break;
+                                        const linkedTitle = titleProp.map((t: any) => t.plain_text).join('');
+                                        if (!toggleText || toggleText === 'Untitled') {
+                                          toggleText = linkedTitle;
+                                          toggleLink = `https://www.notion.so/${linkedPageId.replace(/-/g, '')}`;
+                                        } else {
+                                          toggleChildContent.push(`  📄 ${linkedTitle}`);
+                                        }
                                       }
                                     }
                                   } catch (e) {
                                     console.warn('Failed to fetch linked page:', e);
+                                  }
+                                }
+                              } else if (toggleChild.type === 'paragraph' || toggleChild.type === 'bulleted_list_item' || toggleChild.type === 'numbered_list_item') {
+                                // Extract text content from inside the toggle
+                                const childRichText = toggleChild[toggleChild.type]?.rich_text || [];
+                                const childText = childRichText.map((rt: any) => rt.plain_text).join('');
+                                if (childText.trim()) {
+                                  const prefix = toggleChild.type === 'bulleted_list_item' ? '  • ' : 
+                                                 toggleChild.type === 'numbered_list_item' ? '  ∙ ' : '  ';
+                                  toggleChildContent.push(`${prefix}${childText}`);
+                                }
+                              } else if (toggleChild.type === 'heading_3' || toggleChild.type === 'heading_2') {
+                                const childRichText = toggleChild[toggleChild.type]?.rich_text || [];
+                                const childText = childRichText.map((rt: any) => rt.plain_text).join('');
+                                if (childText.trim()) {
+                                  toggleChildContent.push(`  ▪ ${childText}`);
+                                }
+                              } else if (toggleChild.type === 'toggle') {
+                                // Nested toggle — get its title and content too
+                                const nestedRichText = toggleChild.toggle?.rich_text || [];
+                                const nestedTitle = nestedRichText.map((rt: any) => rt.plain_text).join('');
+                                if (nestedTitle.trim()) {
+                                  toggleChildContent.push(`  ▸ ${nestedTitle}`);
+                                }
+                                // Fetch nested toggle children
+                                if (toggleChild.has_children) {
+                                  try {
+                                    const nestedRes = await fetch(`/api/notion/v1/blocks/${toggleChild.id}/children?page_size=20`, {
+                                      headers: { 'Authorization': `Bearer ${NOTION_API_KEY}` }
+                                    });
+                                    if (nestedRes.ok) {
+                                      const nestedData = await nestedRes.json();
+                                      for (const nestedChild of nestedData.results) {
+                                        const ncType = nestedChild.type;
+                                        const ncRichText = nestedChild[ncType]?.rich_text;
+                                        if (Array.isArray(ncRichText)) {
+                                          const ncText = ncRichText.map((rt: any) => rt.plain_text).join('');
+                                          if (ncText.trim()) {
+                                            toggleChildContent.push(`    ${ncText}`);
+                                          }
+                                        }
+                                      }
+                                    }
+                                  } catch (e) {
+                                    console.warn('Failed to fetch nested toggle children:', e);
                                   }
                                 }
                               }
@@ -356,11 +410,17 @@ export default function App() {
                       }
                       
                       if (toggleText && toggleText.length > 0) {
+                        let toggleEntry = `▸ ${toggleText}`;
                         if (toggleLink) {
-                          noteItems.push(`▸ ${toggleText}\n  🔗 ${toggleLink}`);
-                        } else {
-                          noteItems.push(`▸ ${toggleText}`);
+                          toggleEntry += `\n  🔗 ${toggleLink}`;
                         }
+                        if (toggleChildContent.length > 0) {
+                          toggleEntry += '\n' + toggleChildContent.join('\n');
+                        }
+                        noteItems.push(toggleEntry);
+                      } else if (toggleChildContent.length > 0) {
+                        // No toggle title but has content
+                        noteItems.push(toggleChildContent.join('\n'));
                       }
                     } else if (siblingType === 'child_page') {
                       const pageName = siblingBlock.child_page?.title || '';
@@ -1594,12 +1654,12 @@ export default function App() {
            {editingSticky?.notes && (
               <div>
                <label className="block text-xs text-gray-400 mb-1.5">Notes</label>
-               <div className="text-sm text-gray-600 leading-relaxed space-y-1">
+               <div className="text-sm text-gray-600 leading-relaxed space-y-0.5">
                  {editingSticky.notes.split('\n').map((line, idx) => {
                    // Check if line is a URL (engineering or other link)
                    if (line.trim().startsWith('🔗 ')) {
                      const url = line.trim().replace('🔗 ', '');
-                     const isEngineering = editingSticky.notes.split('\n')[idx - 1]?.includes('Engineering');
+                     const isEngineering = editingSticky.notes?.split('\n')[idx - 1]?.includes('Engineering');
                      return (
                        <a 
                          key={idx}
@@ -1611,6 +1671,25 @@ export default function App() {
                          🔗 {isEngineering ? 'View Engineering Deliverable' : 'Open Link'}
                          <ExternalLink size={12} />
                        </a>
+                     );
+                   }
+                   // Toggle header (▸)
+                   if (line.trim().startsWith('▸ ')) {
+                     return (
+                       <div key={idx} className="font-medium text-gray-800 mt-2 first:mt-0 flex items-center gap-1.5">
+                         <ChevronRight size={12} className="text-gray-400" />
+                         <span>{line.trim().replace('▸ ', '')}</span>
+                       </div>
+                     );
+                   }
+                   // Indented toggle content (starts with spaces)
+                   if (line.startsWith('  ') && !line.trim().startsWith('🔗')) {
+                     const depth = line.match(/^(\s+)/)?.[1]?.length || 2;
+                     const paddingClass = depth >= 4 ? 'pl-8' : 'pl-4';
+                     return (
+                       <p key={idx} className={`${paddingClass} text-gray-500 text-xs leading-relaxed`}>
+                         {line.trim()}
+                       </p>
                      );
                    }
                    // Check if line contains a Notion URL
@@ -1630,7 +1709,7 @@ export default function App() {
                            >
                              Open <ExternalLink size={12} />
                            </a>
-              </div>
+                         </div>
                        );
                      }
                    }
