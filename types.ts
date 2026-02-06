@@ -16,6 +16,10 @@ export interface StickyNote {
   notes?: string;          // Additional notes from Notion
   milestoneId?: string;    // Associated milestone ID
   milestoneTitle?: string; // Associated milestone title (for display)
+  // Block IDs for Notion sync
+  ownerBlockId?: string;        // Notion block ID for the Owner: field
+  deliveryDateBlockId?: string; // Notion block ID for the Delivery date: field
+  parentBlockId?: string;       // Parent synced_block ID for creating new fields
 }
 
 export interface Milestone {

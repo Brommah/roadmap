@@ -127,11 +127,185 @@ export default function App() {
             }
           }
           
-          // Treat child_page as H2 (lane marker)
+          // Treat child_page as H2 (lane marker) AND fetch its children for checkpoints
           if (type === 'child_page' && textContent) {
             const lane = findLane(textContent, LANES);
             if (lane) {
               currentLaneId = lane.id;
+              console.log(`Found child_page "${textContent}" -> lane ${lane.id}, fetching children...`);
+              
+              // Fetch children of this child_page to find checkpoints
+              try {
+                const childPageRes = await fetch(`/api/notion/v1/blocks/${block.id}/children?page_size=100`, {
+                  headers: { 'Authorization': `Bearer ${NOTION_API_KEY}` }
+                });
+                if (childPageRes.ok) {
+                  const childPageData = await childPageRes.json();
+                  console.log(`Child page "${textContent}" has ${childPageData.results.length} blocks`);
+                  
+                  // Process each block in the child page
+                  for (const childBlock of childPageData.results) {
+                    const childType = childBlock.type;
+                    
+                    // Handle synced_block inside child_page
+                    if (childType === 'synced_block') {
+                      console.log(`Found synced_block inside child_page "${textContent}"`);
+                      const syncRes = await fetch(`/api/notion/v1/blocks/${childBlock.id}/children?page_size=100`, {
+                        headers: { 'Authorization': `Bearer ${NOTION_API_KEY}` }
+                      });
+                      if (syncRes.ok) {
+                        const syncData = await syncRes.json();
+                        
+                        // Find checkpoint indices
+                        const deliverableIndices: number[] = [];
+                        syncData.results.forEach((child: any, idx: number) => {
+                          const cType = child.type;
+                          const cRichText = child[cType]?.rich_text;
+                          if (Array.isArray(cRichText)) {
+                            const cText = cRichText.map((rt: any) => rt.plain_text).join('');
+                            if ((cType === 'heading_3' && cText.toLowerCase().includes('checkpoint')) ||
+                                cText.toLowerCase().startsWith('deliverable')) {
+                              deliverableIndices.push(idx);
+                            }
+                          }
+                        });
+                        
+                        console.log(`Found ${deliverableIndices.length} checkpoints in synced_block`);
+                        
+                        // Process each checkpoint
+                        for (let i = 0; i < deliverableIndices.length; i++) {
+                          const startIdx = deliverableIndices[i];
+                          const endIdx = i < deliverableIndices.length - 1 ? deliverableIndices[i + 1] : syncData.results.length;
+                          
+                          const deliverableBlock = syncData.results[startIdx];
+                          const deliverableRichText = deliverableBlock[deliverableBlock.type]?.rich_text || [];
+                          const deliverableText = deliverableRichText.map((rt: any) => rt.plain_text).join('');
+                          let deliverableTitle = deliverableText
+                            .replace(/^checkpoint\s*\d*[:\s]*/i, '')
+                            .replace(/^deliverable[:\s]*\d*[:\s]*/i, '')
+                            .trim();
+                          
+                          if (deliverableTitle.length <= 3) continue;
+                          
+                          // Extract date from title
+                          const dateMatch = deliverableText.match(/(\d{4}-\d{2}-\d{2})/);
+                          let deliveryDate = '';
+                          let assignedQuarterId = currentQuarterId;
+                          
+                          if (dateMatch) {
+                            deliveryDate = dateMatch[1];
+                            const quarterFromDate = getQuarterFromDate(deliveryDate);
+                            if (quarterFromDate) assignedQuarterId = quarterFromDate;
+                          }
+                          
+                          // Collect sibling data
+                          let owner = 'Unassigned';
+                          let ownerBlockId = '';
+                          let extractedDeliveryDate = '';
+                          let deliveryDateBlockId = '';
+                          const noteItems: string[] = [];
+                          
+                          for (let j = startIdx + 1; j < endIdx; j++) {
+                            const siblingBlock = syncData.results[j];
+                            const siblingType = siblingBlock.type;
+                            
+                            if (siblingType === 'paragraph' || siblingType === 'bulleted_list_item') {
+                              const siblingRichText = siblingBlock[siblingType]?.rich_text || [];
+                              const siblingText = siblingRichText.map((rt: any) => rt.plain_text).join('');
+                              
+                              console.log(`  Sibling block: "${siblingText.substring(0, 50)}..."`);
+                              
+                              if (siblingText.toLowerCase().startsWith('owner:')) {
+                                ownerBlockId = siblingBlock.id;
+                                let ownerFromMention = '';
+                                for (const rt of siblingRichText) {
+                                  if (rt.type === 'mention' && rt.mention?.type === 'user') {
+                                    ownerFromMention = rt.mention.user?.name || rt.plain_text || '';
+                                    break;
+                                  }
+                                  if (rt.type === 'mention' && rt.mention?.type === 'page') {
+                                    ownerFromMention = rt.plain_text || '';
+                                    break;
+                                  }
+                                }
+                                owner = ownerFromMention || siblingText.replace(/^owner[:\s]*/i, '').trim();
+                                console.log(`    -> Owner extracted: "${owner}"`);
+                              } else if (siblingText.toLowerCase().includes('delivery date') || siblingText.toLowerCase().includes('delivery:')) {
+                                deliveryDateBlockId = siblingBlock.id;
+                                for (const rt of siblingRichText) {
+                                  if (rt.type === 'mention' && rt.mention?.type === 'date') {
+                                    extractedDeliveryDate = rt.mention.date.start;
+                                    break;
+                                  }
+                                }
+                                if (!extractedDeliveryDate) {
+                                  const dMatch = siblingText.match(/(\d{4}-\d{2}-\d{2})/);
+                                  if (dMatch) extractedDeliveryDate = dMatch[1];
+                                }
+                                if (!extractedDeliveryDate) {
+                                  const textDateMatch = siblingText.match(/(?:delivery\s*date[:\s]*|delivery[:\s]*)(.+)/i);
+                                  if (textDateMatch) {
+                                    const dateStr = textDateMatch[1].trim();
+                                    const parsed = new Date(dateStr);
+                                    if (!isNaN(parsed.getTime())) {
+                                      extractedDeliveryDate = parsed.toISOString().split('T')[0];
+                                    }
+                                  }
+                                }
+                                console.log(`    -> Delivery date extracted: "${extractedDeliveryDate}"`);
+                              } else if (siblingText.length > 0) {
+                                noteItems.push(siblingText);
+                              }
+                            } else if (siblingType === 'toggle') {
+                              const toggleRichText = siblingBlock.toggle?.rich_text || [];
+                              const toggleText = toggleRichText.map((rt: any) => rt.plain_text).join('');
+                              if (toggleText) noteItems.push(`▸ ${toggleText}`);
+                            }
+                          }
+                          
+                          if (!deliveryDate && extractedDeliveryDate) {
+                            deliveryDate = extractedDeliveryDate;
+                            const qFromDate = getQuarterFromDate(deliveryDate);
+                            if (qFromDate) assignedQuarterId = qFromDate;
+                          }
+                          
+                          console.log(`Creating sticky: "${deliverableTitle}", owner="${owner}", date="${deliveryDate}"`);
+                          
+                          newStickies.push({
+                            id: deliverableBlock.id,
+                            title: deliverableTitle,
+                            owner: owner,
+                            laneId: lane.id,
+                            quarterId: assignedQuarterId,
+                            isDone: false,
+                            status: 'green',
+                            wikiUrl: '',
+                            deliveryDate: deliveryDate,
+                            notes: noteItems.join('\n'),
+                            milestoneId: currentMilestoneId,
+                            milestoneTitle: currentMilestoneTitle,
+                            ownerBlockId: ownerBlockId || undefined,
+                            deliveryDateBlockId: deliveryDateBlockId || undefined,
+                            parentBlockId: childBlock.id
+                          });
+                        }
+                      }
+                    }
+                    
+                    // Also check for direct heading_3 checkpoints (not in synced_block)
+                    if (childType === 'heading_3') {
+                      const h3RichText = childBlock.heading_3?.rich_text || [];
+                      const h3Text = h3RichText.map((rt: any) => rt.plain_text).join('');
+                      if (h3Text.toLowerCase().includes('checkpoint')) {
+                        console.log(`Found direct checkpoint in child_page: "${h3Text}"`);
+                        // TODO: Handle direct checkpoints if needed
+                      }
+                    }
+                  }
+                }
+              } catch (e) {
+                console.warn(`Failed to fetch child_page "${textContent}" children:`, e);
+              }
             }
             continue;
           }
@@ -194,7 +368,10 @@ export default function App() {
                   let engineeringDeliverable = '';
                   let engineeringLink = '';
                   let owner = 'Unassigned';
+                  let ownerBlockId = '';
                   let extractedDeliveryDate = '';
+                  let deliveryDateBlockId = '';
+                  const parentBlockId = block.id; // synced_block ID
                   const noteItems: string[] = [];
                   
                   for (let j = startIdx + 1; j < endIdx; j++) {
@@ -236,8 +413,25 @@ export default function App() {
                         engineeringDeliverable = siblingText.replace(/^engineering deliverable[:\s]*/i, '').trim();
                         engineeringLink = itemLink;
                       } else if (siblingText.toLowerCase().startsWith('owner:')) {
-                        owner = siblingText.replace(/^owner[:\s]*/i, '').trim();
-                      } else if (siblingText.toLowerCase().includes('delivery date:')) {
+                        // Store the block ID for later sync
+                        ownerBlockId = siblingBlock.id;
+                        // Check for user mention first (e.g., @Person Name)
+                        let ownerFromMention = '';
+                        for (const rt of siblingRichText) {
+                          if (rt.type === 'mention' && rt.mention?.type === 'user') {
+                            ownerFromMention = rt.mention.user?.name || rt.plain_text || '';
+                            break;
+                          }
+                          // Also handle page mentions (linking to person pages)
+                          if (rt.type === 'mention' && rt.mention?.type === 'page') {
+                            ownerFromMention = rt.plain_text || '';
+                            break;
+                          }
+                        }
+                        owner = ownerFromMention || siblingText.replace(/^owner[:\s]*/i, '').trim();
+                      } else if (siblingText.toLowerCase().includes('delivery date') || siblingText.toLowerCase().includes('delivery:')) {
+                        // Store the block ID for later sync
+                        deliveryDateBlockId = siblingBlock.id;
                         // Extract delivery date - check for date mention first
                         for (const rt of siblingRichText) {
                           if (rt.type === 'mention' && rt.mention?.type === 'date') {
@@ -250,6 +444,17 @@ export default function App() {
                           const dateMatch = siblingText.match(/(\d{4}-\d{2}-\d{2})/);
                           if (dateMatch) {
                             extractedDeliveryDate = dateMatch[1];
+                          }
+                        }
+                        // Fallback: try to parse text date formats like "March 30, 2026"
+                        if (!extractedDeliveryDate) {
+                          const textDateMatch = siblingText.match(/(?:delivery\s*date[:\s]*|delivery[:\s]*)(.+)/i);
+                          if (textDateMatch) {
+                            const dateStr = textDateMatch[1].trim();
+                            const parsed = new Date(dateStr);
+                            if (!isNaN(parsed.getTime())) {
+                              extractedDeliveryDate = parsed.toISOString().split('T')[0];
+                            }
                           }
                         }
                       } else if (siblingText.length > 0) {
@@ -458,7 +663,7 @@ export default function App() {
                     notes += noteItems.join('\n');
                   }
                   
-                  console.log(`Found deliverable: "${deliverableTitle}", date=${deliveryDate}, milestone="${currentMilestoneTitle}", notes="${notes}"`);
+                  console.log(`Found deliverable: "${deliverableTitle}", date=${deliveryDate}, milestone="${currentMilestoneTitle}", notes="${notes}", ownerBlockId=${ownerBlockId}, deliveryDateBlockId=${deliveryDateBlockId}`);
                   newStickies.push({
                     id: deliverableBlock.id,
                     title: deliverableTitle,
@@ -471,7 +676,11 @@ export default function App() {
                     deliveryDate: deliveryDate,
                     notes: notes.trim(),
                     milestoneId: currentMilestoneId,
-                    milestoneTitle: currentMilestoneTitle
+                    milestoneTitle: currentMilestoneTitle,
+                    // Block IDs for Notion sync
+                    ownerBlockId: ownerBlockId || undefined,
+                    deliveryDateBlockId: deliveryDateBlockId || undefined,
+                    parentBlockId: parentBlockId
                   });
                 }
               }
@@ -659,29 +868,35 @@ export default function App() {
                 }
                 continue;
               }
-              // Descriptive heading (like "Demo Sales Collateral") - create sticky below
+              // Descriptive heading (like "Demo Sales Collateral") - handled separately
             }
           }
           
-          // H2 (non-lane-header) / H3 / Toggle / Paragraph with "Deliverable:" = Sticky
-          const isDeliverable = textContent.toLowerCase().startsWith('deliverable:');
-          console.log(`Block check: type=${type}, text="${textContent.substring(0, 50)}...", isDeliverable=${isDeliverable}`);
-          if ((type === 'heading_2') || type === 'heading_3' || type === 'toggle' || (type === 'paragraph' && isDeliverable)) {
-            // Skip if it was a lane header format (CODE - Name pattern)
+          // ONLY H3 with "Checkpoint" creates a card on the roadmap
+          // All other non-header content (toggles, paragraphs, bullets) are notes
+          const isCheckpoint = type === 'heading_3' && textContent.toLowerCase().includes('checkpoint');
+          console.log(`Block check: type=${type}, text="${textContent.substring(0, 50)}...", isCheckpoint=${isCheckpoint}`);
+          
+          // Skip non-checkpoint content at top level (it will be captured as notes by the checkpoint processing)
+          if (!isCheckpoint) {
+            // Skip H2 lane headers (already handled above)
             if (type === 'heading_2') {
               const isLaneHeaderFormat = /^[A-Z]\d+[a-z]?\s*[-–]\s+/i.test(textContent);
               if (isLaneHeaderFormat && findLane(textContent, LANES)) {
-                continue; // Already handled above
+                continue;
               }
             }
+            // Skip all other non-header content (toggles, paragraphs, bullets, etc.)
+            // These are captured as notes by the preceding checkpoint
+            continue;
+          }
+          
+          // Process H3 Checkpoint - creates a card
+          if (isCheckpoint) {
+            // Clean up "Checkpoint X:" prefix
+            const cleanTitle = textContent.replace(/^checkpoint\s*\d*[:\s]*/i, '').trim();
             
-            // Clean up "Deliverable:" prefix
-            let cleanTitle = textContent;
-            if (isDeliverable) {
-              cleanTitle = textContent.replace(/^deliverable:\s*/i, '').trim();
-            }
-            
-            // Only add if it looks like a task (simple heuristic)
+            // Only add if title has content
             if (cleanTitle.length > 3) {
               const sticky: StickyNote = {
                 id: block.id,
@@ -698,87 +913,184 @@ export default function App() {
                 milestoneTitle: currentMilestoneTitle
               };
               
-              // If block has children (toggle), fetch them for metadata
-              if (block.has_children) {
-                try {
-                  const childrenRes = await fetch(`/api/notion/v1/blocks/${block.id}/children?page_size=100`, {
-                    headers: { 'Authorization': `Bearer ${NOTION_API_KEY}` }
-                  });
-                  if (childrenRes.ok) {
-                    const childrenData = await childrenRes.json();
-                    const notesParts: string[] = [];
-                    
-                    for (const child of childrenData.results) {
-                      const childType = child.type;
-                      const childRichText = child[childType]?.rich_text;
-                      if (!Array.isArray(childRichText)) continue;
-                      
-                      const childText = childRichText.map((rt: any) => rt.plain_text).join('');
-                      const childTextLower = childText.toLowerCase();
-                      
-                      // Extract Status
-                      if (childTextLower.includes('status:')) {
-                        const statusValue = childText.split(':')[1]?.trim().toLowerCase();
-                        if (statusValue?.includes('testing') || statusValue?.includes('in progress')) {
-                          sticky.status = 'yellow';
-                        } else if (statusValue?.includes('blocked') || statusValue?.includes('stuck')) {
-                          sticky.status = 'red';
-                        } else if (statusValue?.includes('done') || statusValue?.includes('complete')) {
-                          sticky.isDone = true;
-                        }
+              // For heading_3 checkpoints, look at SIBLING blocks for Owner/Delivery Date
+              if (type === 'heading_3' && isCheckpoint) {
+                const blockIndex = data.results.indexOf(block);
+                console.log(`Processing checkpoint "${cleanTitle}" at index ${blockIndex}, looking for sibling metadata...`);
+                
+                const noteItems: string[] = [];
+                // Look at next few blocks until we hit another heading or divider
+                for (let sibIdx = blockIndex + 1; sibIdx < data.results.length; sibIdx++) {
+                  const siblingBlock = data.results[sibIdx];
+                  const sibType = siblingBlock.type;
+                  
+                  // Stop at headings, dividers, or synced_blocks
+                  if (sibType === 'heading_1' || sibType === 'heading_2' || sibType === 'heading_3' || 
+                      sibType === 'divider' || sibType === 'synced_block') {
+                    break;
+                  }
+                  
+                  const sibRichText = siblingBlock[sibType]?.rich_text;
+                  if (!Array.isArray(sibRichText)) continue;
+                  
+                  const sibText = sibRichText.map((rt: any) => rt.plain_text).join('');
+                  console.log(`  Sibling ${sibIdx}: type=${sibType}, text="${sibText.substring(0, 50)}..."`);
+                  
+                  // Extract Owner
+                  if (sibText.toLowerCase().startsWith('owner:')) {
+                    sticky.ownerBlockId = siblingBlock.id;
+                    let ownerFromMention = '';
+                    for (const rt of sibRichText) {
+                      if (rt.type === 'mention' && rt.mention?.type === 'user') {
+                        ownerFromMention = rt.mention.user?.name || rt.plain_text || '';
+                        break;
                       }
-                      
-                      // Extract Wiki/Knowledge Base URL (from rich_text href)
-                      if (childTextLower.includes('wiki entry:') || childTextLower.includes('wiki:') || childTextLower.includes('knowledge base:')) {
-                        for (const rt of childRichText) {
-                          if (rt.href) {
-                            sticky.wikiUrl = rt.href;
-                            break;
-                          }
-                        }
-                      }
-                      
-                      // Extract Delivery Date (from mentions or text)
-                      if (childTextLower.includes('delivery date:') || childTextLower.includes('date:')) {
-                        // Check for date mention
-                        for (const rt of childRichText) {
-                          if (rt.type === 'mention' && rt.mention?.type === 'date') {
-                            sticky.deliveryDate = rt.mention.date.start;
-                            break;
-                          }
-                        }
-                        // Fallback: extract date from text after colon
-                        if (!sticky.deliveryDate) {
-                          const datePart = childText.split(':')[1]?.trim();
-                          if (datePart) sticky.deliveryDate = datePart;
-                        }
-                      }
-                      
-                      // Collect other notes
-                      if (!childTextLower.includes('status:') && 
-                          !childTextLower.includes('wiki entry:') && 
-                          !childTextLower.includes('delivery date:') &&
-                          childText.trim()) {
-                        notesParts.push(childText.trim());
+                      if (rt.type === 'mention' && rt.mention?.type === 'page') {
+                        ownerFromMention = rt.plain_text || '';
+                        break;
                       }
                     }
-                    
-                    sticky.notes = notesParts.join('\n');
+                    sticky.owner = ownerFromMention || sibText.replace(/^owner[:\s]*/i, '').trim();
+                    console.log(`    -> Owner: "${sticky.owner}"`);
                   }
-                } catch (e) {
-                  console.warn('Failed to fetch toggle children:', e);
+                  // Extract Delivery Date
+                  else if (sibText.toLowerCase().includes('delivery date') || sibText.toLowerCase().includes('delivery:')) {
+                    sticky.deliveryDateBlockId = siblingBlock.id;
+                    for (const rt of sibRichText) {
+                      if (rt.type === 'mention' && rt.mention?.type === 'date') {
+                        sticky.deliveryDate = rt.mention.date.start;
+                        break;
+                      }
+                    }
+                    if (!sticky.deliveryDate) {
+                      const dMatch = sibText.match(/(\d{4}-\d{2}-\d{2})/);
+                      if (dMatch) sticky.deliveryDate = dMatch[1];
+                    }
+                    if (!sticky.deliveryDate) {
+                      const textDateMatch = sibText.match(/(?:delivery\s*date[:\s]*|delivery[:\s]*)(.+)/i);
+                      if (textDateMatch) {
+                        const dateStr = textDateMatch[1].trim();
+                        const parsed = new Date(dateStr);
+                        if (!isNaN(parsed.getTime())) {
+                          sticky.deliveryDate = parsed.toISOString().split('T')[0];
+                        }
+                      }
+                    }
+                    console.log(`    -> Delivery Date: "${sticky.deliveryDate}"`);
+                  }
+                  // Extract Status (Red/Amber/Yellow/Green)
+                  else if (sibText.toLowerCase().startsWith('status:')) {
+                    const statusText = sibText.toLowerCase();
+                    if (statusText.includes('red') || statusText.includes('🔴') || statusText.includes('blocked')) {
+                      sticky.status = 'red';
+                    } else if (statusText.includes('yellow') || statusText.includes('amber') || statusText.includes('🟡') || statusText.includes('🟠') || statusText.includes('at risk')) {
+                      sticky.status = 'yellow';
+                    } else if (statusText.includes('green') || statusText.includes('🟢') || statusText.includes('on track')) {
+                      sticky.status = 'green';
+                    }
+                    console.log(`    -> Status: "${sticky.status}"`);
+                  }
+                  // Collect other content as notes
+                  else if (sibText.length > 0) {
+                    if (sibType === 'bulleted_list_item') {
+                      noteItems.push(`• ${sibText}`);
+                    } else if (sibType === 'toggle') {
+                      noteItems.push(`▸ ${sibText}`);
+                      // Fetch toggle children
+                      if (siblingBlock.has_children) {
+                        try {
+                          const toggleRes = await fetch(`/api/notion/v1/blocks/${siblingBlock.id}/children?page_size=50`, {
+                            headers: { 'Authorization': `Bearer ${NOTION_API_KEY}` }
+                          });
+                          if (toggleRes.ok) {
+                            const toggleData = await toggleRes.json();
+                            for (const toggleChild of toggleData.results) {
+                              const tcType = toggleChild.type;
+                              const tcRichText = toggleChild[tcType]?.rich_text;
+                              if (Array.isArray(tcRichText)) {
+                                const tcText = tcRichText.map((rt: any) => rt.plain_text).join('');
+                                if (tcText.trim()) noteItems.push(`  ${tcText}`);
+                              }
+                            }
+                          }
+                        } catch (e) {
+                          console.warn('Failed to fetch toggle children:', e);
+                        }
+                      }
+                    } else {
+                      noteItems.push(sibText);
+                    }
+                  }
+                  
+                  // Also fetch children of sibling blocks (e.g., toggles nested inside paragraphs)
+                  if (siblingBlock.has_children && sibType !== 'toggle') {
+                    try {
+                      const sibChildrenRes = await fetch(`/api/notion/v1/blocks/${siblingBlock.id}/children?page_size=50`, {
+                        headers: { 'Authorization': `Bearer ${NOTION_API_KEY}` }
+                      });
+                      if (sibChildrenRes.ok) {
+                        const sibChildrenData = await sibChildrenRes.json();
+                        for (const sibChild of sibChildrenData.results) {
+                          const scType = sibChild.type;
+                          if (scType === 'toggle') {
+                            const scRichText = sibChild.toggle?.rich_text || [];
+                            const scText = scRichText.map((rt: any) => rt.plain_text).join('');
+                            if (scText.trim()) {
+                              noteItems.push(`▸ ${scText}`);
+                              // Fetch nested toggle children
+                              if (sibChild.has_children) {
+                                try {
+                                  const nestedRes = await fetch(`/api/notion/v1/blocks/${sibChild.id}/children?page_size=50`, {
+                                    headers: { 'Authorization': `Bearer ${NOTION_API_KEY}` }
+                                  });
+                                  if (nestedRes.ok) {
+                                    const nestedData = await nestedRes.json();
+                                    for (const nestedChild of nestedData.results) {
+                                      const ncType = nestedChild.type;
+                                      const ncRichText = nestedChild[ncType]?.rich_text;
+                                      if (Array.isArray(ncRichText)) {
+                                        const ncText = ncRichText.map((rt: any) => rt.plain_text).join('');
+                                        if (ncText.trim()) noteItems.push(`  ${ncText}`);
+                                      }
+                                    }
+                                  }
+                                } catch (e) {
+                                  console.warn('Failed to fetch nested toggle children:', e);
+                                }
+                              }
+                            }
+                          } else {
+                            const scRichText = sibChild[scType]?.rich_text;
+                            if (Array.isArray(scRichText)) {
+                              const scText = scRichText.map((rt: any) => rt.plain_text).join('');
+                              if (scText.trim() && !scText.toLowerCase().startsWith('owner:') && !scText.toLowerCase().includes('delivery')) {
+                                noteItems.push(`  ${scText}`);
+                              }
+                            }
+                          }
+                        }
+                      }
+                    } catch (e) {
+                      console.warn('Failed to fetch sibling block children:', e);
+                    }
+                  }
                 }
-              }
-              
-              // Auto-assign quarter based on delivery date (overrides parent H1 quarter)
-              if (sticky.deliveryDate) {
-                const dateQuarter = getQuarterFromDate(sticky.deliveryDate);
-                if (dateQuarter) {
-                  sticky.quarterId = dateQuarter;
+                
+                if (noteItems.length > 0) {
+                  sticky.notes = noteItems.join('\n');
                 }
+                
+                // Auto-assign quarter based on delivery date
+                if (sticky.deliveryDate) {
+                  const dateQuarter = getQuarterFromDate(sticky.deliveryDate);
+                  if (dateQuarter) {
+                    sticky.quarterId = dateQuarter;
+                  }
+                }
+                
+                console.log(`Created checkpoint sticky: "${sticky.title}", owner="${sticky.owner}", date="${sticky.deliveryDate}", lane="${sticky.laneId}"`);
+                newStickies.push(sticky);
               }
-              
-              newStickies.push(sticky);
             }
           }
         }
@@ -1019,8 +1331,11 @@ export default function App() {
     setIsModalOpen(true);
   };
 
-  const saveSticky = () => {
+  const saveSticky = async () => {
     if (!editingSticky || !editingSticky.title) return;
+
+    // Find original sticky to detect changes
+    const originalSticky = stickies.find(s => s.id === editingSticky.id);
 
     if (editingSticky.id) {
       setStickies(prev => prev.map(s => s.id === editingSticky.id ? editingSticky as StickyNote : s));
@@ -1034,6 +1349,63 @@ export default function App() {
     }
     setIsModalOpen(false);
     setEditingSticky(null);
+
+    // Sync changes to Notion in background
+    if (originalSticky && editingSticky.id) {
+      try {
+        // Sync Owner changes
+        if (originalSticky.owner !== editingSticky.owner && editingSticky.ownerBlockId) {
+          console.log(`Syncing owner change to Notion: ${originalSticky.owner} → ${editingSticky.owner}`);
+          await fetch(`/api/notion/v1/blocks/${editingSticky.ownerBlockId}`, {
+            method: 'PATCH',
+            headers: {
+              'Authorization': `Bearer ${NOTION_API_KEY}`,
+              'Content-Type': 'application/json',
+              'Notion-Version': '2022-06-28'
+            },
+            body: JSON.stringify({
+              paragraph: {
+                rich_text: [{
+                  type: 'text',
+                  text: { content: `Owner: ${editingSticky.owner}` }
+                }]
+              }
+            })
+          });
+          console.log('✅ Notion owner updated');
+        }
+
+        // Sync Delivery Date changes
+        if (originalSticky.deliveryDate !== editingSticky.deliveryDate && editingSticky.deliveryDateBlockId) {
+          console.log(`Syncing delivery date change to Notion: ${originalSticky.deliveryDate} → ${editingSticky.deliveryDate}`);
+          const formattedDate = editingSticky.deliveryDate 
+            ? new Date(editingSticky.deliveryDate).toLocaleDateString('en-US', { 
+                month: 'long', day: 'numeric', year: 'numeric' 
+              })
+            : 'TBD';
+          
+          await fetch(`/api/notion/v1/blocks/${editingSticky.deliveryDateBlockId}`, {
+            method: 'PATCH',
+            headers: {
+              'Authorization': `Bearer ${NOTION_API_KEY}`,
+              'Content-Type': 'application/json',
+              'Notion-Version': '2022-06-28'
+            },
+            body: JSON.stringify({
+              paragraph: {
+                rich_text: [{
+                  type: 'text',
+                  text: { content: `Delivery Date: ${formattedDate}` }
+                }]
+              }
+            })
+          });
+          console.log('✅ Notion delivery date updated');
+        }
+      } catch (e) {
+        console.warn('Failed to sync changes to Notion:', e);
+      }
+    }
   };
 
   const deleteEditingSticky = () => {
