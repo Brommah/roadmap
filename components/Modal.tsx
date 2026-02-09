@@ -32,24 +32,24 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
     <div className="fixed inset-0 z-50">
       {/* Backdrop */}
       <div 
-        className="absolute inset-0 bg-black/20 backdrop-blur-sm"
+        className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
         onClick={onClose}
       />
       
       {/* Side Drawer (480px, slides from right) */}
       <div 
         ref={modalRef}
-        className="absolute right-0 top-0 bottom-0 w-[480px] bg-white shadow-float flex flex-col"
+        className="absolute right-0 top-0 bottom-0 w-[480px] bg-slate-900 shadow-2xl flex flex-col border-l border-slate-700"
         style={{
           animation: 'slideIn 200ms ease-out'
         }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700">
+          <h3 className="text-lg font-semibold text-white">{title}</h3>
           <button 
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-100"
+            className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition-colors"
           >
             <X size={18} />
           </button>
@@ -62,7 +62,7 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
 
         {/* Footer */}
         {footer && (
-          <div className="px-6 py-4 border-t border-gray-100 bg-gray-50">
+          <div className="px-6 py-4 border-t border-slate-700 bg-slate-800/50">
             {footer}
           </div>
         )}

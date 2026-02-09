@@ -21,30 +21,22 @@ interface Toggle {
 
 // Parse a line and extract any URLs (both raw and markdown-style), making them clickable
 const renderTextWithLinks = (text: string): React.ReactNode => {
-  // First handle markdown-style links [text](url)
-  // Then handle raw URLs
   const parts: React.ReactNode[] = [];
   let remaining = text;
   let keyIndex = 0;
   
-  // Regex for markdown links [text](url) and raw URLs
   const markdownLinkRegex = /\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g;
-  const rawUrlRegex = /(https?:\/\/[^\s<>"\]\)]+)/g;
   
-  // First pass: extract markdown links
   let lastIndex = 0;
   let match;
   
   while ((match = markdownLinkRegex.exec(text)) !== null) {
-    // Add text before the link
     if (match.index > lastIndex) {
       const beforeText = text.slice(lastIndex, match.index);
-      // Check for raw URLs in this text
       parts.push(...renderRawUrls(beforeText, keyIndex));
       keyIndex += 10;
     }
     
-    // Add the markdown link
     const linkText = match[1];
     const url = match[2];
     parts.push(
@@ -53,7 +45,7 @@ const renderTextWithLinks = (text: string): React.ReactNode => {
         href={url}
         target="_blank"
         rel="noopener noreferrer"
-        className="text-blue-600 hover:text-blue-800 hover:underline inline-flex items-center gap-0.5"
+        className="text-violet-400 hover:text-violet-300 hover:underline inline-flex items-center gap-0.5"
         onClick={(e) => e.stopPropagation()}
       >
         {linkText}
@@ -64,7 +56,6 @@ const renderTextWithLinks = (text: string): React.ReactNode => {
     lastIndex = match.index + match[0].length;
   }
   
-  // Add remaining text after last markdown link
   if (lastIndex < text.length) {
     const afterText = text.slice(lastIndex);
     parts.push(...renderRawUrls(afterText, keyIndex));
@@ -73,14 +64,12 @@ const renderTextWithLinks = (text: string): React.ReactNode => {
   return parts.length > 0 ? parts : text;
 };
 
-// Helper to render raw URLs in text
 const renderRawUrls = (text: string, startKey: number): React.ReactNode[] => {
   const urlRegex = /(https?:\/\/[^\s<>"\]\)]+)/g;
   const parts = text.split(urlRegex);
   
   return parts.map((part, i) => {
     if (part.match(urlRegex)) {
-      // Clean up trailing punctuation
       let url = part;
       let trailing = '';
       if (url.endsWith('.') || url.endsWith(',')) {
@@ -94,7 +83,7 @@ const renderRawUrls = (text: string, startKey: number): React.ReactNode[] => {
             href={url}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-blue-600 hover:text-blue-800 hover:underline inline-flex items-center gap-0.5"
+            className="text-violet-400 hover:text-violet-300 hover:underline inline-flex items-center gap-0.5"
             onClick={(e) => e.stopPropagation()}
           >
             {url.length > 50 ? url.substring(0, 50) + '...' : url}
@@ -111,7 +100,6 @@ const renderRawUrls = (text: string, startKey: number): React.ReactNode[] => {
 export const NotesRenderer: React.FC<NotesRendererProps> = ({ notes }) => {
   const [expandedToggles, setExpandedToggles] = useState<Set<number>>(new Set());
 
-  // Parse notes into structured format
   const { toggles, standaloneLines } = useMemo(() => {
     const lines = notes.split('\n');
     const toggles: Toggle[] = [];
@@ -123,15 +111,12 @@ export const NotesRenderer: React.FC<NotesRendererProps> = ({ notes }) => {
     for (const line of lines) {
       const trimmed = line.trim();
       
-      // Toggle header (▸)
       if (trimmed.startsWith('▸ ')) {
-        // Save previous toggle if exists
         if (currentToggle) {
           toggles.push(currentToggle);
         }
         
         const content = trimmed.replace('▸ ', '');
-        // Check if toggle title contains a URL
         const urlMatch = content.match(/(https?:\/\/[^\s]+)/);
         
         currentToggle = {
@@ -143,7 +128,6 @@ export const NotesRenderer: React.FC<NotesRendererProps> = ({ notes }) => {
         continue;
       }
       
-      // Link line (🔗)
       if (trimmed.startsWith('🔗 ')) {
         const url = trimmed.replace('🔗 ', '');
         const parsed: ParsedLine = { type: 'link', content: url, url };
@@ -156,7 +140,6 @@ export const NotesRenderer: React.FC<NotesRendererProps> = ({ notes }) => {
         continue;
       }
       
-      // Indented content (toggle children)
       if (line.startsWith('  ') && currentToggle) {
         const depth = (line.match(/^(\s+)/)?.[1]?.length || 2) / 2;
         currentToggle.content.push({
@@ -167,7 +150,6 @@ export const NotesRenderer: React.FC<NotesRendererProps> = ({ notes }) => {
         continue;
       }
       
-      // Bullet point
       if (trimmed.startsWith('• ') || trimmed.startsWith('∙ ')) {
         const content = trimmed.replace(/^[•∙]\s*/, '');
         const parsed: ParsedLine = { type: 'bullet', content };
@@ -180,9 +162,7 @@ export const NotesRenderer: React.FC<NotesRendererProps> = ({ notes }) => {
         continue;
       }
       
-      // Regular text
       if (trimmed) {
-        // End current toggle if we hit non-indented regular text
         if (currentToggle && !line.startsWith('  ')) {
           toggles.push(currentToggle);
           currentToggle = null;
@@ -196,7 +176,6 @@ export const NotesRenderer: React.FC<NotesRendererProps> = ({ notes }) => {
       }
     }
     
-    // Don't forget the last toggle
     if (currentToggle) {
       toggles.push(currentToggle);
     }
@@ -225,7 +204,7 @@ export const NotesRenderer: React.FC<NotesRendererProps> = ({ notes }) => {
             href={line.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1.5 text-blue-600 hover:text-blue-800 hover:underline py-0.5 pl-2"
+            className="flex items-center gap-1.5 text-violet-400 hover:text-violet-300 hover:underline py-0.5 pl-2"
             onClick={(e) => e.stopPropagation()}
           >
             🔗 {line.url && line.url.length > 60 ? line.url.substring(0, 60) + '...' : line.content}
@@ -236,22 +215,22 @@ export const NotesRenderer: React.FC<NotesRendererProps> = ({ notes }) => {
       case 'bullet':
         return (
           <div key={key} className="flex items-start gap-2 py-0.5 pl-2">
-            <span className="text-gray-400 mt-0.5">•</span>
-            <span className="text-gray-600">{renderTextWithLinks(line.content)}</span>
+            <span className="text-slate-500 mt-0.5">•</span>
+            <span className="text-slate-300">{renderTextWithLinks(line.content)}</span>
           </div>
         );
       
       case 'toggle-content':
         const paddingClass = (line.depth || 1) >= 2 ? 'pl-8' : 'pl-4';
         return (
-          <p key={key} className={`${paddingClass} text-gray-500 text-xs leading-relaxed py-0.5`}>
+          <p key={key} className={`${paddingClass} text-slate-400 text-xs leading-relaxed py-0.5`}>
             {renderTextWithLinks(line.content)}
           </p>
         );
       
       default:
         return (
-          <p key={key} className="text-gray-600 py-0.5">
+          <p key={key} className="text-slate-300 py-0.5">
             {renderTextWithLinks(line.content)}
           </p>
         );
@@ -260,42 +239,39 @@ export const NotesRenderer: React.FC<NotesRendererProps> = ({ notes }) => {
 
   return (
     <div className="text-sm leading-relaxed space-y-1">
-      {/* Standalone lines (before any toggles) */}
       {standaloneLines.map((line, idx) => renderLine(line, `standalone-${idx}`))}
       
-      {/* Toggles */}
       {toggles.map((toggle, idx) => {
         const isExpanded = expandedToggles.has(idx);
         const hasContent = toggle.content.length > 0;
         
         return (
-          <div key={`toggle-${idx}`} className="border-l-2 border-gray-100 ml-1">
-            {/* Toggle header */}
+          <div key={`toggle-${idx}`} className="border-l-2 border-slate-700 ml-1">
             <button
               onClick={() => hasContent && toggleExpanded(idx)}
               className={`
                 w-full flex items-center gap-1.5 py-1 px-2 text-left rounded-r
-                ${hasContent ? 'hover:bg-gray-50 cursor-pointer' : 'cursor-default'}
+                ${hasContent ? 'hover:bg-slate-700/50 cursor-pointer' : 'cursor-default'}
                 transition-colors
               `}
             >
               {hasContent ? (
                 isExpanded ? (
-                  <ChevronDown size={14} className="text-gray-400 shrink-0" />
+                  <ChevronDown size={14} className="text-slate-500 shrink-0" />
                 ) : (
-                  <ChevronRight size={14} className="text-gray-400 shrink-0" />
+                  <ChevronRight size={14} className="text-slate-500 shrink-0" />
                 )
               ) : (
                 <span className="w-3.5" />
               )}
               
-              <span className="font-medium text-gray-800 flex-1">
+              <span className="font-medium text-slate-200 flex-1">
                 {toggle.titleUrl ? (
                   <a
                     href={toggle.titleUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-600 hover:text-blue-800 hover:underline inline-flex items-center gap-1"
+                    className="text-violet-400 hover:text-violet-300 hover:underline inline-flex items-center gap-1"
                     onClick={(e) => e.stopPropagation()}
                   >
                     {toggle.title || 'Open Link'}
@@ -307,13 +283,12 @@ export const NotesRenderer: React.FC<NotesRendererProps> = ({ notes }) => {
               </span>
               
               {hasContent && !isExpanded && (
-                <span className="text-xs text-gray-400">
+                <span className="text-xs text-slate-500">
                   {toggle.content.length} item{toggle.content.length !== 1 ? 's' : ''}
                 </span>
               )}
             </button>
             
-            {/* Toggle content */}
             {isExpanded && hasContent && (
               <div className="pl-4 pb-1 space-y-0.5">
                 {toggle.content.map((line, lineIdx) => renderLine(line, `toggle-${idx}-line-${lineIdx}`))}

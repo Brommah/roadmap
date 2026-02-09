@@ -601,9 +601,9 @@ export default function App() {
                                   extractedStatus = 'green';
                                 }
                                 console.log(`    -> Status extracted: "${extractedStatus}"`);
-                              } else if (siblingText.toLowerCase().startsWith('blocker:')) {
-                                // Extract blocker description
-                                extractedBlocker = siblingText.replace(/^blocker[:\s]*/i, '').trim();
+                              } else if (siblingText.trim().toLowerCase().startsWith('blocker:') || siblingText.trim().toLowerCase().startsWith('blocker ')) {
+                                // Extract blocker description - handle "Blocker:" or "Blocker " formats
+                                extractedBlocker = siblingText.replace(/^\s*blocker[:\s]*/i, '').trim();
                                 console.log(`    -> Blocker extracted: "${extractedBlocker}"`);
                               } else if (siblingText.length > 0) {
                                 // Use extractRichTextWithLinks to preserve embedded links
@@ -837,9 +837,9 @@ export default function App() {
                           extractedStatus = 'green';
                         }
                         console.log(`    -> Status extracted: "${extractedStatus}"`);
-                      } else if (siblingText.toLowerCase().startsWith('blocker:')) {
-                        // Extract blocker description
-                        extractedBlocker = siblingText.replace(/^blocker[:\s]*/i, '').trim();
+                      } else if (siblingText.trim().toLowerCase().startsWith('blocker:') || siblingText.trim().toLowerCase().startsWith('blocker ')) {
+                        // Extract blocker description - handle "Blocker:" or "Blocker " formats
+                        extractedBlocker = siblingText.replace(/^\s*blocker[:\s]*/i, '').trim();
                         console.log(`    -> Blocker extracted: "${extractedBlocker}"`);
                       } else if (siblingText.length > 0) {
                         // Use extractRichTextWithLinks to preserve embedded links
@@ -2377,7 +2377,7 @@ export default function App() {
             {editingSticky?.id && (
                <button 
                 onClick={deleteEditingSticky}
-                className="text-gray-500 hover:text-red-600 text-sm"
+                className="text-slate-400 hover:text-red-400 text-sm transition-colors"
                >
                  Delete
                </button>
@@ -2385,7 +2385,7 @@ export default function App() {
             <div className="flex items-center gap-3 ml-auto">
             <button 
               onClick={() => setIsModalOpen(false)}
-                className="text-gray-500 hover:text-gray-700 text-sm"
+              className="text-slate-400 hover:text-white text-sm transition-colors"
             >
               Cancel
             </button>
@@ -2393,10 +2393,10 @@ export default function App() {
               onClick={saveSticky}
               disabled={isSaveDisabled}
               className={`
-                  px-4 py-2 rounded-lg text-sm font-medium
+                  px-4 py-2 rounded-lg text-sm font-medium transition-colors
                 ${isSaveDisabled 
-                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
-                    : 'bg-gray-900 text-white hover:bg-gray-800'}
+                    ? 'bg-slate-700 text-slate-500 cursor-not-allowed' 
+                    : 'bg-gradient-to-r from-violet-500 to-purple-600 text-white hover:from-violet-600 hover:to-purple-700'}
               `}
             >
                 Save
@@ -2410,9 +2410,9 @@ export default function App() {
            <div className="flex items-center justify-between">
              <div className="flex items-center gap-2">
                <span className={`px-2.5 py-1 rounded-md text-xs font-medium ${
-                 editingSticky?.isDone ? 'bg-gray-100 text-gray-600' :
-                 editingSticky?.status === 'green' ? 'bg-green-50 text-green-700' : 
-                 editingSticky?.status === 'yellow' ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-700'
+                 editingSticky?.isDone ? 'bg-slate-700 text-slate-300' :
+                 editingSticky?.status === 'green' ? 'bg-emerald-500/20 text-emerald-400' : 
+                 editingSticky?.status === 'yellow' ? 'bg-amber-500/20 text-amber-400' : 'bg-red-500/20 text-red-400'
                }`}>
                  {editingSticky?.isDone ? 'Shipped' : 
                   editingSticky?.status === 'green' ? 'On Track' : 
@@ -2421,19 +2421,19 @@ export default function App() {
                <select 
                   value={editingSticky?.status || 'green'}
                   onChange={e => setEditingSticky(prev => prev ? ({ ...prev, status: e.target.value as StickyStatus }) : null)}
-                  className="text-xs text-gray-400 bg-transparent border-none cursor-pointer hover:text-gray-600"
+                  className="text-xs text-slate-400 bg-transparent border-none cursor-pointer hover:text-white"
                 >
                   <option value="green">On Track</option>
                   <option value="yellow">At Risk</option>
                   <option value="red">Blocked</option>
                 </select>
              </div>
-             <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-500">
+             <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-400 hover:text-white transition-colors">
              <input 
                   type="checkbox"
                   checked={editingSticky?.isDone || false}
                   onChange={e => setEditingSticky(prev => prev ? ({ ...prev, isDone: e.target.checked }) : null)}
-                  className="w-4 h-4 rounded border-gray-300 text-gray-900 focus:ring-gray-500"
+                  className="w-4 h-4 rounded border-slate-600 bg-slate-800 text-violet-500 focus:ring-violet-500"
                 />
                 Shipped
               </label>
@@ -2441,23 +2441,23 @@ export default function App() {
 
            {/* Title */}
            <div>
-             <label className="block text-xs text-gray-400 mb-1.5">Title</label>
+             <label className="block text-xs text-slate-400 mb-1.5">Title</label>
              <textarea 
                autoFocus
                value={editingSticky?.title || ''} 
                onChange={e => setEditingSticky(prev => prev ? ({ ...prev, title: e.target.value }) : null)}
                placeholder="Deliverable title..."
-               className="w-full p-3 bg-gray-100 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 resize-none h-20 focus:bg-white focus:ring-2 focus:ring-gray-200 outline-none"
+               className="w-full p-3 bg-slate-800 border border-slate-700 rounded-lg text-sm text-white placeholder:text-slate-500 resize-none h-20 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 outline-none"
              />
            </div>
 
            {/* Associated Milestone */}
            {editingSticky?.milestoneTitle && (
-             <div className="flex items-center gap-2 p-2.5 bg-blue-50 rounded-lg border border-blue-100">
-               <span className="text-blue-600">📌</span>
+             <div className="flex items-center gap-2 p-2.5 bg-violet-500/10 rounded-lg border border-violet-500/30">
+               <span className="text-violet-400">📌</span>
                <div className="flex-1 min-w-0">
-                 <span className="text-[10px] text-blue-400 uppercase tracking-wide block">Milestone</span>
-                 <span className="text-sm font-medium text-blue-700 truncate block">{extractOutcome(editingSticky.milestoneTitle)}</span>
+                 <span className="text-[10px] text-violet-400 uppercase tracking-wide block">Milestone</span>
+                 <span className="text-sm font-medium text-violet-300 truncate block">{extractOutcome(editingSticky.milestoneTitle)}</span>
               </div>
              </div>
            )}
@@ -2465,11 +2465,11 @@ export default function App() {
            {/* Owner + Date */}
            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs text-gray-400 mb-1.5">Owner</label>
+                <label className="block text-xs text-slate-400 mb-1.5">Owner</label>
                 <select 
                   value={editingSticky?.owner || 'Unassigned'}
                   onChange={e => setEditingSticky(prev => prev ? ({ ...prev, owner: e.target.value }) : null)}
-                  className="w-full p-2.5 bg-gray-100 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-gray-200 outline-none"
+                  className="w-full p-2.5 bg-slate-800 border border-slate-700 rounded-lg text-sm text-white focus:border-violet-500 focus:ring-1 focus:ring-violet-500 outline-none"
                 >
                   <option value="Unassigned">Unassigned</option>
                   {uniqueOwners.filter(o => o !== 'Unassigned').map(owner => (
@@ -2478,12 +2478,12 @@ export default function App() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs text-gray-400 mb-1.5">Delivery Date</label>
+                <label className="block text-xs text-slate-400 mb-1.5">Delivery Date</label>
                 <input 
                   type="date"
                   value={editingSticky?.deliveryDate?.split('T')[0] || ''}
                   onChange={e => setEditingSticky(prev => prev ? ({ ...prev, deliveryDate: e.target.value }) : null)}
-                  className="w-full p-2.5 bg-gray-100 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-gray-200 outline-none"
+                  className="w-full p-2.5 bg-slate-800 border border-slate-700 rounded-lg text-sm text-white focus:border-violet-500 focus:ring-1 focus:ring-violet-500 outline-none"
                 />
               </div>
            </div>
@@ -2491,7 +2491,7 @@ export default function App() {
            {/* Blocker - Show when status is red OR when there's a blocker value */}
            {(editingSticky?.status === 'red' || editingSticky?.blocker) && (
              <div>
-                <label className="block text-xs text-red-500 mb-1.5 flex items-center gap-2">
+                <label className="block text-xs text-red-400 mb-1.5 flex items-center gap-2">
                   <AlertTriangle size={12} />
                   Blocker
                 </label>
@@ -2500,21 +2500,21 @@ export default function App() {
                   value={editingSticky?.blocker || ''}
                   onChange={e => setEditingSticky(prev => prev ? ({ ...prev, blocker: e.target.value }) : null)}
                   placeholder="What's blocking this?"
-                  className="w-full p-2.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800 focus:ring-2 focus:ring-red-200 outline-none"
+                  className="w-full p-2.5 bg-red-500/10 border border-red-500/30 rounded-lg text-sm text-red-300 placeholder:text-red-400/50 focus:ring-1 focus:ring-red-500 outline-none"
                 />
              </div>
            )}
            
            {/* Knowledge Base */}
               <div>
-              <label className="block text-xs text-gray-400 mb-1.5 flex items-center gap-2">
+              <label className="block text-xs text-slate-400 mb-1.5 flex items-center gap-2">
                 Knowledge Base
                 {editingSticky?.wikiUrl && (
                   <a 
                     href={editingSticky.wikiUrl} 
                     target="_blank" 
                     rel="noreferrer"
-                    className="text-blue-500 hover:text-blue-600"
+                    className="text-violet-400 hover:text-violet-300"
                   >
                     <ExternalLink size={10} />
                   </a>
@@ -2525,15 +2525,17 @@ export default function App() {
                    value={editingSticky?.wikiUrl || ''}
                    onChange={e => setEditingSticky(prev => prev ? ({ ...prev, wikiUrl: e.target.value }) : null)}
                 placeholder="https://notion.so/..."
-                className="w-full p-2.5 bg-gray-100 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-gray-200 outline-none"
+                className="w-full p-2.5 bg-slate-800 border border-slate-700 rounded-lg text-sm text-white placeholder:text-slate-500 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 outline-none"
                  />
               </div>
 
            {/* Notes */}
            {editingSticky?.notes && (
               <div>
-               <label className="block text-xs text-gray-400 mb-1.5">Notes</label>
-               <NotesRenderer notes={editingSticky.notes} />
+               <label className="block text-xs text-slate-400 mb-1.5">Notes</label>
+               <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700">
+                 <NotesRenderer notes={editingSticky.notes} />
+               </div>
               </div>
            )}
         </div>
