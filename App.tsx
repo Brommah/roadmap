@@ -3,11 +3,12 @@ import { StickyCard } from './components/StickyCard';
 import { Modal } from './components/Modal';
 import { NotesRenderer } from './components/NotesRenderer';
 import { CEF_LANES, CERE_LANES, QUARTERS, INITIAL_STICKIES, INITIAL_MILESTONES } from './constants';
-import { StickyNote, Milestone, StickyStatus, Lane } from './types';
+import { StickyNote, Milestone, StickyStatus, Lane, Quarter } from './types';
 import { 
   Plus, Flag, Search, ChevronDown, ChevronRight, Save, Trash2, 
   Filter, Calendar, Info, CheckCircle, AlertTriangle, BookOpen, 
-  Folder, FolderOpen, ExternalLink, RefreshCw, Copy, XCircle, Loader2, Globe 
+  Folder, FolderOpen, ExternalLink, RefreshCw, Copy, XCircle, Loader2, Globe,
+  ZoomIn, ZoomOut
 } from 'lucide-react';
 import { getUniqueOwners, getUniqueGroups, formatNotionId, findLane, findQuarter, getDatePositionInQuarter, sortStickyByDate, getQuarterFromDate, getTodayPosition, extractOutcome } from './utils';
 
@@ -47,6 +48,197 @@ const extractRichTextWithLinks = (richText: any[]): string => {
   }).join('');
 };
 
+// Zoom level type
+type ZoomLevel = 'week' | 'month' | 'quarter' | 'year';
+
+// Column type for dynamic timeline
+interface TimelineColumn {
+  id: string;
+  label: string;
+  sublabel?: string;
+  startDate: Date;
+  endDate: Date;
+}
+
+// Get week number in month (1-5)
+function getWeekOfMonth(date: Date): number {
+  const firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
+  const firstDayOfWeek = firstDay.getDay();
+  const offsetDate = date.getDate() + firstDayOfWeek - 1;
+  return Math.ceil(offsetDate / 7);
+}
+
+// Generate columns based on zoom level
+function generateTimelineColumns(zoomLevel: ZoomLevel, referenceDate: Date = new Date()): TimelineColumn[] {
+  const columns: TimelineColumn[] = [];
+  
+  switch (zoomLevel) {
+    case 'week': {
+      // Show current week: 7 columns (Mon-Sun)
+      const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      const dayOfWeek = referenceDate.getDay();
+      const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+      const monday = new Date(referenceDate);
+      monday.setDate(referenceDate.getDate() + mondayOffset);
+      monday.setHours(0, 0, 0, 0);
+      
+      for (let i = 0; i < 7; i++) {
+        const dayStart = new Date(monday);
+        dayStart.setDate(monday.getDate() + i);
+        const dayEnd = new Date(dayStart);
+        dayEnd.setHours(23, 59, 59, 999);
+        
+        columns.push({
+          id: `day-${i}`,
+          label: dayNames[i],
+          sublabel: dayStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          startDate: dayStart,
+          endDate: dayEnd,
+        });
+      }
+      break;
+    }
+    
+    case 'month': {
+      // Show current month: 4-5 week columns
+      const year = referenceDate.getFullYear();
+      const month = referenceDate.getMonth();
+      const firstDay = new Date(year, month, 1);
+      const lastDay = new Date(year, month + 1, 0);
+      
+      // Find the Monday of the week containing the 1st
+      const firstDayOfWeek = firstDay.getDay();
+      const mondayOffset = firstDayOfWeek === 0 ? -6 : 1 - firstDayOfWeek;
+      let weekStart = new Date(firstDay);
+      weekStart.setDate(firstDay.getDate() + mondayOffset);
+      
+      let weekNum = 1;
+      while (weekStart <= lastDay) {
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 6);
+        weekEnd.setHours(23, 59, 59, 999);
+        
+        const weekStartDisplay = new Date(Math.max(weekStart.getTime(), firstDay.getTime()));
+        const weekEndDisplay = new Date(Math.min(weekEnd.getTime(), lastDay.getTime()));
+        
+        columns.push({
+          id: `week-${weekNum}`,
+          label: `Week ${weekNum}`,
+          sublabel: `${weekStartDisplay.getDate()}-${weekEndDisplay.getDate()}`,
+          startDate: new Date(weekStart),
+          endDate: weekEnd,
+        });
+        
+        weekStart.setDate(weekStart.getDate() + 7);
+        weekNum++;
+        
+        if (weekNum > 6) break; // Safety limit
+      }
+      break;
+    }
+    
+    case 'quarter': {
+      // Show 8 quarters (current behavior)
+      return QUARTERS.map(q => {
+        const qNum = parseInt(q.label.replace('Q', ''));
+        const quarterStartMonth = (qNum - 1) * 3;
+        const startDate = new Date(q.year, quarterStartMonth, 1);
+        const endDate = new Date(q.year, quarterStartMonth + 3, 0, 23, 59, 59, 999);
+        
+        return {
+          id: q.id,
+          label: q.label,
+          sublabel: q.year.toString(),
+          startDate,
+          endDate,
+        };
+      });
+    }
+    
+    case 'year': {
+      // Show current year: 4 quarters compressed
+      const year = referenceDate.getFullYear();
+      for (let q = 1; q <= 4; q++) {
+        const quarterStartMonth = (q - 1) * 3;
+        const startDate = new Date(year, quarterStartMonth, 1);
+        const endDate = new Date(year, quarterStartMonth + 3, 0, 23, 59, 59, 999);
+        
+        columns.push({
+          id: `${year}-Q${q}`,
+          label: `Q${q}`,
+          sublabel: year.toString(),
+          startDate,
+          endDate,
+        });
+      }
+      break;
+    }
+  }
+  
+  return columns;
+}
+
+// Get position of a date within a column (0-100%)
+function getPositionInColumn(deliveryDate: string | undefined, column: TimelineColumn): number {
+  if (!deliveryDate) return 50;
+  
+  let date: Date;
+  try {
+    date = new Date(deliveryDate);
+    if (isNaN(date.getTime())) return 50;
+  } catch {
+    return 50;
+  }
+  
+  const columnDuration = column.endDate.getTime() - column.startDate.getTime();
+  const dateOffset = date.getTime() - column.startDate.getTime();
+  
+  return Math.max(5, Math.min(95, (dateOffset / columnDuration) * 100));
+}
+
+// Check if a sticky belongs in a column based on its delivery date
+function stickyBelongsInColumn(sticky: StickyNote, column: TimelineColumn): boolean {
+  if (!sticky.deliveryDate) return false;
+  
+  let date: Date;
+  try {
+    date = new Date(sticky.deliveryDate);
+    if (isNaN(date.getTime())) return false;
+  } catch {
+    return false;
+  }
+  
+  return date >= column.startDate && date <= column.endDate;
+}
+
+// Get card size class based on zoom level
+function getCardSizeClass(zoomLevel: ZoomLevel): { minHeight: string; fontSize: string; padding: string } {
+  switch (zoomLevel) {
+    case 'week':
+      return { minHeight: 'min-h-[200px]', fontSize: 'text-sm', padding: 'p-3' };
+    case 'month':
+      return { minHeight: 'min-h-[150px]', fontSize: 'text-xs', padding: 'p-2.5' };
+    case 'quarter':
+      return { minHeight: 'min-h-[100px]', fontSize: 'text-xs', padding: 'p-2' };
+    case 'year':
+      return { minHeight: 'min-h-[60px]', fontSize: 'text-[10px]', padding: 'p-1.5' };
+  }
+}
+
+// Get column width based on zoom level
+function getColumnWidth(zoomLevel: ZoomLevel): number {
+  switch (zoomLevel) {
+    case 'week':
+      return 200;
+    case 'month':
+      return 240;
+    case 'quarter':
+      return 360;
+    case 'year':
+      return 280;
+  }
+}
+
 // Notion configuration - set these in .env.local (dev) or Vercel env vars (prod)
 // Page IDs for each view
 const PAGE_IDS = {
@@ -55,6 +247,92 @@ const PAGE_IDS = {
 };
 // API key is only needed for local dev - in production, serverless function uses server-side env var
 const NOTION_API_KEY = import.meta.env.VITE_NOTION_API_KEY || '';
+
+// Recursive function to fetch toggle content at any depth
+async function fetchToggleContentRecursive(
+  blockId: string, 
+  depth: number = 0, 
+  maxDepth: number = 10
+): Promise<string[]> {
+  if (depth >= maxDepth) {
+    console.log(`⚠️ Toggle depth truncated at ${depth} (maxDepth=${maxDepth}) for block ${blockId}`);
+    return [];
+  }
+  
+  const indent = '  '.repeat(depth + 1);
+  const content: string[] = [];
+  
+  try {
+    const res = await fetch(`/api/notion/v1/blocks/${blockId}/children?page_size=50`, {
+      headers: { 'Authorization': `Bearer ${NOTION_API_KEY}` }
+    });
+    
+    if (!res.ok) return content;
+    
+    const data = await res.json();
+    
+    for (const block of data.results) {
+      const type = block.type;
+      const richText = block[type]?.rich_text;
+      
+      if (type === 'toggle') {
+        // Toggle header - use extractRichTextWithLinks to preserve embedded links
+        const toggleTitle = richText ? extractRichTextWithLinks(richText) : '';
+        if (toggleTitle.trim()) {
+          content.push(`${indent}▸ ${toggleTitle}`);
+        }
+        // Recursively fetch toggle children
+        if (block.has_children) {
+          const nestedContent = await fetchToggleContentRecursive(block.id, depth + 1, maxDepth);
+          content.push(...nestedContent);
+        }
+      } else if (type === 'child_page') {
+        const pageName = block.child_page?.title || '';
+        if (pageName && pageName !== 'Untitled') {
+          content.push(`${indent}📄 ${pageName}`);
+        }
+      } else if (type === 'link_to_page') {
+        const pageId = block.link_to_page?.page_id;
+        if (pageId) {
+          // Try to fetch page title
+          try {
+            const pageRes = await fetch(`/api/notion/v1/pages/${pageId}`, {
+              headers: { 'Authorization': `Bearer ${NOTION_API_KEY}` }
+            });
+            if (pageRes.ok) {
+              const pageData = await pageRes.json();
+              const titleProp = pageData.properties?.title?.title || pageData.properties?.Name?.title;
+              const pageTitle = titleProp?.map((t: any) => t.plain_text).join('') || '';
+              if (pageTitle) {
+                content.push(`${indent}📄 ${pageTitle}`);
+              }
+            }
+          } catch {
+            content.push(`${indent}📄 https://www.notion.so/${pageId.replace(/-/g, '')}`);
+          }
+        }
+      } else if (Array.isArray(richText)) {
+        // Text content (paragraph, bullet, heading, etc.) - preserve embedded links
+        const textWithLinks = extractRichTextWithLinks(richText);
+        if (textWithLinks.trim()) {
+          const prefix = type === 'bulleted_list_item' ? '• ' : 
+                        type === 'numbered_list_item' ? '∙ ' : 
+                        type.startsWith('heading') ? '▪ ' : '';
+          content.push(`${indent}${prefix}${textWithLinks}`);
+        }
+        // Also check for nested children in non-toggle blocks
+        if (block.has_children && type !== 'toggle') {
+          const nestedContent = await fetchToggleContentRecursive(block.id, depth + 1, maxDepth);
+          content.push(...nestedContent);
+        }
+      }
+    }
+  } catch (e) {
+    console.warn(`Failed to fetch toggle content at depth ${depth}:`, e);
+  }
+  
+  return content;
+}
 
 // Helper to get headers for Notion API calls
 // In dev: include Authorization header for Vite proxy
@@ -88,6 +366,13 @@ export default function App() {
   const [statusFilter, setStatusFilter] = useState<StickyStatus | 'done' | 'all'>('all');
   const [ownerFilter, setOwnerFilter] = useState<string>('all');
   const [groupFilter, setGroupFilter] = useState<string>('all');
+  
+  // Timeline zoom level (replaces timeframe filter)
+  const [zoomLevel, setZoomLevel] = useState<ZoomLevel>('quarter');
+  const [referenceDate, setReferenceDate] = useState<Date>(new Date());
+  
+  // Generate timeline columns based on zoom level
+  const timelineColumns = useMemo(() => generateTimelineColumns(zoomLevel, referenceDate), [zoomLevel, referenceDate]);
 
   // Collapsed states for groups (lanes don't collapse anymore)
   // Start with all collapsed, then expand groups with content after data loads
@@ -291,12 +576,23 @@ export default function App() {
                                 }
                                 console.log(`    -> Delivery date extracted: "${extractedDeliveryDate}"`);
                               } else if (siblingText.length > 0) {
-                                noteItems.push(siblingText);
+                                // Use extractRichTextWithLinks to preserve embedded links
+                                const textWithLinks = extractRichTextWithLinks(siblingRichText);
+                                noteItems.push(textWithLinks);
                               }
                             } else if (siblingType === 'toggle') {
                               const toggleRichText = siblingBlock.toggle?.rich_text || [];
-                              const toggleText = toggleRichText.map((rt: any) => rt.plain_text).join('');
-                              if (toggleText) noteItems.push(`▸ ${toggleText}`);
+                              const toggleTextWithLinks = extractRichTextWithLinks(toggleRichText);
+                              if (toggleTextWithLinks) noteItems.push(`▸ ${toggleTextWithLinks}`);
+                              // Fetch all nested content recursively
+                              if (siblingBlock.has_children) {
+                                try {
+                                  const nestedContent = await fetchToggleContentRecursive(siblingBlock.id, 0, 10);
+                                  noteItems.push(...nestedContent);
+                                } catch (e) {
+                                  console.warn('Failed to fetch toggle children:', e);
+                                }
+                              }
                             }
                           }
                           
@@ -495,13 +791,14 @@ export default function App() {
                           }
                         }
                       } else if (siblingText.length > 0) {
-                        // Use extractRichTextWithLinks to get text WITH embedded links
+                        // Use extractRichTextWithLinks to preserve embedded links
                         const textWithLinks = extractRichTextWithLinks(siblingRichText);
                         noteItems.push(`${siblingType === 'bulleted_list_item' ? '• ' : ''}${textWithLinks}`);
                       }
                     } else if (siblingType === 'toggle') {
                       const toggleRichText = siblingBlock.toggle?.rich_text || [];
-                      let toggleText = '';
+                      // Use extractRichTextWithLinks to get toggle title with embedded links
+                      let toggleText = extractRichTextWithLinks(toggleRichText);
                       let toggleLink = '';
                       
                       console.log('Toggle rich_text:', JSON.stringify(toggleRichText, null, 2));
@@ -596,46 +893,32 @@ export default function App() {
                                   }
                                 }
                               } else if (toggleChild.type === 'paragraph' || toggleChild.type === 'bulleted_list_item' || toggleChild.type === 'numbered_list_item') {
-                                // Extract text content WITH links from inside the toggle
+                                // Extract text content from inside the toggle
                                 const childRichText = toggleChild[toggleChild.type]?.rich_text || [];
-                                const childTextWithLinks = extractRichTextWithLinks(childRichText);
-                                if (childTextWithLinks.trim()) {
+                                const childText = childRichText.map((rt: any) => rt.plain_text).join('');
+                                if (childText.trim()) {
                                   const prefix = toggleChild.type === 'bulleted_list_item' ? '  • ' : 
                                                  toggleChild.type === 'numbered_list_item' ? '  ∙ ' : '  ';
-                                  toggleChildContent.push(`${prefix}${childTextWithLinks}`);
+                                  toggleChildContent.push(`${prefix}${childText}`);
                                 }
                               } else if (toggleChild.type === 'heading_3' || toggleChild.type === 'heading_2') {
                                 const childRichText = toggleChild[toggleChild.type]?.rich_text || [];
-                                const childTextWithLinks = extractRichTextWithLinks(childRichText);
-                                if (childTextWithLinks.trim()) {
-                                  toggleChildContent.push(`  ▪ ${childTextWithLinks}`);
+                                const childText = childRichText.map((rt: any) => rt.plain_text).join('');
+                                if (childText.trim()) {
+                                  toggleChildContent.push(`  ▪ ${childText}`);
                                 }
                               } else if (toggleChild.type === 'toggle') {
-                                // Nested toggle — get its title and content too
+                                // Nested toggle — get its title and recursively fetch all content
                                 const nestedRichText = toggleChild.toggle?.rich_text || [];
-                                const nestedTitleWithLinks = extractRichTextWithLinks(nestedRichText);
-                                if (nestedTitleWithLinks.trim()) {
-                                  toggleChildContent.push(`  ▸ ${nestedTitleWithLinks}`);
+                                const nestedTitle = nestedRichText.map((rt: any) => rt.plain_text).join('');
+                                if (nestedTitle.trim()) {
+                                  toggleChildContent.push(`  ▸ ${nestedTitle}`);
                                 }
-                                // Fetch nested toggle children
+                                // Recursively fetch ALL nested toggle children (any depth)
                                 if (toggleChild.has_children) {
                                   try {
-                                    const nestedRes = await fetch(`/api/notion/v1/blocks/${toggleChild.id}/children?page_size=20`, {
-                                      headers: { 'Authorization': `Bearer ${NOTION_API_KEY}` }
-                                    });
-                                    if (nestedRes.ok) {
-                                      const nestedData = await nestedRes.json();
-                                      for (const nestedChild of nestedData.results) {
-                                        const ncType = nestedChild.type;
-                                        const ncRichText = nestedChild[ncType]?.rich_text;
-                                        if (Array.isArray(ncRichText)) {
-                                          const ncTextWithLinks = extractRichTextWithLinks(ncRichText);
-                                          if (ncTextWithLinks.trim()) {
-                                            toggleChildContent.push(`    ${ncTextWithLinks}`);
-                                          }
-                                        }
-                                      }
-                                    }
+                                    const nestedContent = await fetchToggleContentRecursive(toggleChild.id, 1, 10);
+                                    toggleChildContent.push(...nestedContent);
                                   } catch (e) {
                                     console.warn('Failed to fetch nested toggle children:', e);
                                   }
@@ -1030,23 +1313,11 @@ export default function App() {
                       noteItems.push(`• ${sibText}`);
                     } else if (sibType === 'toggle') {
                       noteItems.push(`▸ ${sibText}`);
-                      // Fetch toggle children
+                      // Recursively fetch ALL toggle children (any depth)
                       if (siblingBlock.has_children) {
                         try {
-                          const toggleRes = await fetch(`/api/notion/v1/blocks/${siblingBlock.id}/children?page_size=50`, {
-                            headers: { 'Authorization': `Bearer ${NOTION_API_KEY}` }
-                          });
-                          if (toggleRes.ok) {
-                            const toggleData = await toggleRes.json();
-                            for (const toggleChild of toggleData.results) {
-                              const tcType = toggleChild.type;
-                              const tcRichText = toggleChild[tcType]?.rich_text;
-                              if (Array.isArray(tcRichText)) {
-                                const tcText = tcRichText.map((rt: any) => rt.plain_text).join('');
-                                if (tcText.trim()) noteItems.push(`  ${tcText}`);
-                              }
-                            }
-                          }
+                          const nestedContent = await fetchToggleContentRecursive(siblingBlock.id, 0, 10);
+                          noteItems.push(...nestedContent);
                         } catch (e) {
                           console.warn('Failed to fetch toggle children:', e);
                         }
@@ -1071,23 +1342,11 @@ export default function App() {
                             const scText = scRichText.map((rt: any) => rt.plain_text).join('');
                             if (scText.trim()) {
                               noteItems.push(`▸ ${scText}`);
-                              // Fetch nested toggle children
+                              // Recursively fetch ALL nested toggle children (any depth)
                               if (sibChild.has_children) {
                                 try {
-                                  const nestedRes = await fetch(`/api/notion/v1/blocks/${sibChild.id}/children?page_size=50`, {
-                                    headers: { 'Authorization': `Bearer ${NOTION_API_KEY}` }
-                                  });
-                                  if (nestedRes.ok) {
-                                    const nestedData = await nestedRes.json();
-                                    for (const nestedChild of nestedData.results) {
-                                      const ncType = nestedChild.type;
-                                      const ncRichText = nestedChild[ncType]?.rich_text;
-                                      if (Array.isArray(ncRichText)) {
-                                        const ncText = ncRichText.map((rt: any) => rt.plain_text).join('');
-                                        if (ncText.trim()) noteItems.push(`  ${ncText}`);
-                                      }
-                                    }
-                                  }
+                                  const nestedContent = await fetchToggleContentRecursive(sibChild.id, 0, 10);
+                                  noteItems.push(...nestedContent);
                                 } catch (e) {
                                   console.warn('Failed to fetch nested toggle children:', e);
                                 }
@@ -1227,7 +1486,7 @@ export default function App() {
     e.preventDefault();
   };
 
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>, laneId: string, quarterId: string) => {
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>, laneId: string, columnId: string) => {
     e.preventDefault();
     if (!draggedId) return;
     
@@ -1235,20 +1494,29 @@ export default function App() {
     const sticky = stickies.find(s => s.id === draggedId);
     if (!sticky) return;
     
-    // Calculate a suggested date based on the target quarter
-    const quarter = QUARTERS.find(q => q.id === quarterId);
+    // Find the target column
+    const column = timelineColumns.find(c => c.id === columnId);
     let suggestedDate = '';
-    if (quarter) {
-      const quarterMonth = (parseInt(quarter.label.replace('Q', '')) - 1) * 3 + 1; // 1, 4, 7, 10
-      const year = quarter.year;
-      suggestedDate = `${year}-${String(quarterMonth + 1).padStart(2, '0')}-15`; // Middle of second month
+    let targetQuarterId = columnId; // For quarter view, columnId is the quarterId
+    
+    if (column) {
+      // Calculate a date in the middle of the column
+      const midTime = (column.startDate.getTime() + column.endDate.getTime()) / 2;
+      const midDate = new Date(midTime);
+      suggestedDate = midDate.toISOString().split('T')[0];
+      
+      // For non-quarter views, we need to calculate the quarterId from the date
+      if (zoomLevel !== 'quarter') {
+        const qFromDate = getQuarterFromDate(suggestedDate);
+        targetQuarterId = qFromDate || sticky.quarterId;
+      }
     }
     
     // Open confirmation modal
     setPendingMove({
       stickyId: draggedId,
       targetLaneId: laneId,
-      targetQuarterId: quarterId,
+      targetQuarterId: targetQuarterId,
       newDeliveryDate: sticky.deliveryDate || suggestedDate,
     });
     setDraggedId(null);
@@ -1505,6 +1773,14 @@ export default function App() {
 
     return true;
   });
+  
+  // Get stickies that fall within the visible timeline
+  const getStickiesForColumn = (column: TimelineColumn, laneId: string) => {
+    return filteredStickies.filter(s => {
+      if (s.laneId !== laneId) return false;
+      return stickyBelongsInColumn(s, column);
+    });
+  };
 
   const isSaveDisabled = !editingSticky?.title || editingSticky.title.trim().length === 0;
 
@@ -1593,6 +1869,69 @@ export default function App() {
                 <option value="red">● Blocked</option>
                 <option value="done">○ Done</option>
               </select>
+
+              {/* Zoom Level Buttons (like Google Calendar) */}
+              <div className="flex items-center bg-gray-100 rounded-lg p-0.5 ml-2">
+                {(['week', 'month', 'quarter', 'year'] as ZoomLevel[]).map((level) => (
+                  <button
+                    key={level}
+                    onClick={() => {
+                      setZoomLevel(level);
+                      setReferenceDate(new Date()); // Reset to current date when changing zoom
+                    }}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all capitalize ${
+                      zoomLevel === level
+                        ? 'bg-gray-900 text-white'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    {level}
+                  </button>
+                ))}
+              </div>
+
+              {/* Navigation arrows for timeline (when not in quarter view) */}
+              {zoomLevel !== 'quarter' && (
+                <div className="flex items-center gap-1 ml-2">
+                  <button
+                    onClick={() => {
+                      const newDate = new Date(referenceDate);
+                      if (zoomLevel === 'week') newDate.setDate(newDate.getDate() - 7);
+                      else if (zoomLevel === 'month') newDate.setMonth(newDate.getMonth() - 1);
+                      else if (zoomLevel === 'year') newDate.setFullYear(newDate.getFullYear() - 1);
+                      setReferenceDate(newDate);
+                    }}
+                    className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
+                    title="Previous"
+                  >
+                    <ChevronRight size={16} className="rotate-180" />
+                  </button>
+                  <button
+                    onClick={() => setReferenceDate(new Date())}
+                    className="px-2 py-1 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded"
+                  >
+                    Today
+                  </button>
+                  <button
+                    onClick={() => {
+                      const newDate = new Date(referenceDate);
+                      if (zoomLevel === 'week') newDate.setDate(newDate.getDate() + 7);
+                      else if (zoomLevel === 'month') newDate.setMonth(newDate.getMonth() + 1);
+                      else if (zoomLevel === 'year') newDate.setFullYear(newDate.getFullYear() + 1);
+                      setReferenceDate(newDate);
+                    }}
+                    className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
+                    title="Next"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                  <span className="text-xs text-gray-500 ml-2">
+                    {zoomLevel === 'week' && referenceDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                    {zoomLevel === 'month' && referenceDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                    {zoomLevel === 'year' && referenceDate.getFullYear()}
+                  </span>
+                </div>
+              )}
 
               {/* Owner Filter */}
               <select 
@@ -1689,13 +2028,22 @@ export default function App() {
             
             {/* TODAY LINE */}
             {(() => {
-              const todayInfo = getTodayPosition(QUARTERS);
-              if (!todayInfo) return null;
+              const today = new Date();
+              const columnWidth = getColumnWidth(zoomLevel);
               
-              const quarterIndex = QUARTERS.findIndex(q => q.id === todayInfo.quarterId);
-              if (quarterIndex === -1) return null;
+              // Find which column today falls into
+              const todayColumnIndex = timelineColumns.findIndex(col => 
+                today >= col.startDate && today <= col.endDate
+              );
               
-              const leftOffset = 200 + (quarterIndex * 360) + (todayInfo.position / 100 * 360);
+              if (todayColumnIndex === -1) return null;
+              
+              const column = timelineColumns[todayColumnIndex];
+              const columnDuration = column.endDate.getTime() - column.startDate.getTime();
+              const todayOffset = today.getTime() - column.startDate.getTime();
+              const positionInColumn = (todayOffset / columnDuration) * 100;
+              
+              const leftOffset = 200 + (todayColumnIndex * columnWidth) + (positionInColumn / 100 * columnWidth);
               
               return (
                 <div 
@@ -1712,50 +2060,59 @@ export default function App() {
             
             {/* === STICKY HEADER === */}
             <div className="sticky top-0 z-40 bg-white">
-              {/* Quarter Headers */}
+              {/* Timeline Column Headers */}
               <div className="flex border-b border-gray-100">
                 <div className="w-[200px] shrink-0 py-4 px-4">
                   <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">Timeline</span>
                 </div>
-                {QUARTERS.map((quarter) => (
+                {timelineColumns.map((column) => (
                   <div 
-                    key={quarter.id} 
-                    className="w-[360px] shrink-0 py-4 px-4"
+                    key={column.id} 
+                    className="shrink-0 py-4 px-4"
+                    style={{ width: getColumnWidth(zoomLevel) }}
                   >
                     <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">
-                      {quarter.label} {quarter.year}
+                      {column.label}
+                      {column.sublabel && (
+                        <span className="ml-1 text-gray-300">{column.sublabel}</span>
+                      )}
                     </span>
                   </div>
                 ))}
               </div>
 
-              {/* Milestones Row (Subtle Pills) */}
-              <div className="flex border-b border-gray-100 bg-gray-50/50">
-                <div className="w-[200px] shrink-0 py-3 px-4 flex items-center">
-                  <span className="text-xs font-medium text-gray-500">Milestones</span>
+              {/* Milestones Row (Subtle Pills) - Only show in quarter/year views */}
+              {(zoomLevel === 'quarter' || zoomLevel === 'year') && (
+                <div className="flex border-b border-gray-100 bg-gray-50/50">
+                  <div className="w-[200px] shrink-0 py-3 px-4 flex items-center">
+                    <span className="text-xs font-medium text-gray-500">Milestones</span>
+                  </div>
+                  <div className="flex">
+                      {timelineColumns.map((column) => {
+                        const cellMilestones = milestones.filter(m => m.quarterId === column.id);
+                        return (
+                          <div 
+                            key={`milestone-${column.id}`}
+                            className="shrink-0 py-2 px-3 flex flex-wrap gap-2 items-center min-h-[44px]"
+                            style={{ width: getColumnWidth(zoomLevel) }}
+                          >
+                            {cellMilestones.map(m => (
+                              <button 
+                                key={m.id} 
+                                onClick={() => openMilestoneModal(m)}
+                                className={`bg-blue-50 text-blue-700 font-medium rounded-md hover:bg-blue-100 transition-colors ${
+                                  zoomLevel === 'year' ? 'px-2 py-1 text-[10px]' : 'px-3 py-1.5 text-xs'
+                                }`}
+                              >
+                                {extractOutcome(m.title)}
+                               </button>
+                            ))}
+                          </div>
+                        );
+                      })}
+                  </div>
                 </div>
-                <div className="flex">
-                    {QUARTERS.map((quarter) => {
-                      const cellMilestones = milestones.filter(m => m.quarterId === quarter.id);
-                      return (
-                        <div 
-                          key={`milestone-${quarter.id}`}
-                          className="w-[360px] shrink-0 py-2 px-3 flex flex-wrap gap-2 items-center min-h-[44px]"
-                        >
-                          {cellMilestones.map(m => (
-                            <button 
-                              key={m.id} 
-                              onClick={() => openMilestoneModal(m)}
-                              className="px-3 py-1.5 bg-blue-50 text-blue-700 text-xs font-medium rounded-md hover:bg-blue-100 transition-colors"
-                            >
-                              {extractOutcome(m.title)}
-                             </button>
-                          ))}
-                        </div>
-                      );
-                    })}
-                </div>
-              </div>
+              )}
             </div>
 
             {/* === SWIMLANES === */}
@@ -1817,70 +2174,110 @@ export default function App() {
                                 </a>
                               </div>
 
-                              {/* Quarter Cells */}
+                              {/* Timeline Cells */}
                               <div className="flex">
-                                {QUARTERS.map((quarter, qIndex) => {
-                                  const cellStickies = filteredStickies.filter(s => s.laneId === lane.id && s.quarterId === quarter.id);
+                                {timelineColumns.map((column, colIndex) => {
+                                  // Get stickies for this column based on zoom level
+                                  let cellStickies: StickyNote[];
+                                  if (zoomLevel === 'quarter') {
+                                    // For quarter view, use the existing quarterId matching
+                                    cellStickies = filteredStickies.filter(s => s.laneId === lane.id && s.quarterId === column.id);
+                                  } else {
+                                    // For other views, use date-based column matching
+                                    cellStickies = getStickiesForColumn(column, lane.id);
+                                  }
 
-                                  // --- TIMELINE VIEW (always shown) ---
-                                    const sortedCellStickies = sortStickyByDate(cellStickies);
-                                    
-                                    // Calculate height based on stacked cards
-                                    const collapsedHeight = Math.max(44, 8 + sortedCellStickies.length * 28);
+                                  const sortedCellStickies = sortStickyByDate(cellStickies);
+                                  const cardSize = getCardSizeClass(zoomLevel);
+                                  const columnWidth = getColumnWidth(zoomLevel);
+                                  
+                                  // Calculate height based on zoom level and stacked cards
+                                  const baseCardHeight = zoomLevel === 'week' ? 48 : zoomLevel === 'month' ? 36 : zoomLevel === 'year' ? 24 : 28;
+                                  const collapsedHeight = Math.max(44, 8 + sortedCellStickies.length * baseCardHeight);
                                     
                                     return (
                                       <div 
-                                        key={`${lane.id}-${quarter.id}-collapsed`}
+                                        key={`${lane.id}-${column.id}`}
                                         onDragOver={handleDragOver}
-                                        onDrop={(e) => handleDrop(e, lane.id, quarter.id)}
-                                        className="w-[360px] shrink-0 px-2 py-2 relative hover:bg-gray-50/50"
-                                        style={{ minHeight: `${collapsedHeight}px` }}
+                                        onDrop={(e) => handleDrop(e, lane.id, column.id)}
+                                        className="shrink-0 px-2 py-2 relative hover:bg-gray-50/50"
+                                        style={{ width: columnWidth, minHeight: `${collapsedHeight}px` }}
                                       >
-                                        {/* Subtle month dividers */}
+                                        {/* Subtle dividers based on zoom level */}
                                         <div className="absolute inset-0 pointer-events-none">
-                                          <div className="h-full w-px bg-gray-100 absolute" style={{ left: '33.33%' }} />
-                                          <div className="h-full w-px bg-gray-100 absolute" style={{ left: '66.66%' }} />
-                                          </div>
+                                          {zoomLevel === 'quarter' && (
+                                            <>
+                                              <div className="h-full w-px bg-gray-100 absolute" style={{ left: '33.33%' }} />
+                                              <div className="h-full w-px bg-gray-100 absolute" style={{ left: '66.66%' }} />
+                                            </>
+                                          )}
+                                          {zoomLevel === 'year' && (
+                                            <>
+                                              <div className="h-full w-px bg-gray-100 absolute" style={{ left: '33.33%' }} />
+                                              <div className="h-full w-px bg-gray-100 absolute" style={{ left: '66.66%' }} />
+                                            </>
+                                          )}
+                                        </div>
                                         
                                         {/* Stack cards vertically when they overlap */}
                                         {sortedCellStickies.map((sticky, idx) => {
-                                          const position = getDatePositionInQuarter(sticky.deliveryDate, quarter.id);
+                                          const position = getPositionInColumn(sticky.deliveryDate, column);
                                           const hasDate = sticky.deliveryDate && sticky.deliveryDate.length > 0;
                                           
                                           // Calculate vertical offset based on how many previous cards are close
                                           let verticalIndex = 0;
                                           for (let i = 0; i < idx; i++) {
-                                            const prevPos = getDatePositionInQuarter(sortedCellStickies[i].deliveryDate, quarter.id);
-                                            if (Math.abs(position - prevPos) < 25) {
+                                            const prevPos = getPositionInColumn(sortedCellStickies[i].deliveryDate, column);
+                                            const overlapThreshold = zoomLevel === 'week' ? 15 : zoomLevel === 'month' ? 20 : 25;
+                                            if (Math.abs(position - prevPos) < overlapThreshold) {
                                               verticalIndex++;
                                             }
                                           }
                                           
-                                  return (
-                                    <div 
-                                          key={sticky.id}
+                                          // Card styling based on zoom level
+                                          const cardClasses = zoomLevel === 'week' 
+                                            ? 'px-3 py-2 gap-2 rounded-lg shadow-sm'
+                                            : zoomLevel === 'month'
+                                            ? 'px-2.5 py-1.5 gap-2 rounded-md'
+                                            : zoomLevel === 'year'
+                                            ? 'px-1.5 py-0.5 gap-1 rounded text-[10px]'
+                                            : 'px-2 py-1 gap-1.5 rounded-md';
+                                          
+                                          const dotSize = zoomLevel === 'year' ? 'w-1 h-1' : 'w-1.5 h-1.5';
+                                          const maxTitleWidth = zoomLevel === 'week' ? 'max-w-[140px]' : zoomLevel === 'month' ? 'max-w-[120px]' : zoomLevel === 'year' ? 'max-w-[80px]' : 'max-w-[100px]';
+                                          const fontSize = zoomLevel === 'week' ? 'text-sm' : zoomLevel === 'year' ? 'text-[10px]' : 'text-xs';
+                                          
+                                          return (
+                                            <div 
+                                              key={sticky.id}
                                               draggable
                                               onDragStart={(e) => handleDragStart(e, sticky.id)}
-                                            onClick={() => openEditModal(sticky)}
-                                              className="absolute flex items-center gap-1.5 px-2 py-1 bg-white border border-gray-200 rounded-md hover:border-gray-300 hover:-translate-y-px cursor-grab active:cursor-grabbing"
+                                              onClick={() => openEditModal(sticky)}
+                                              className={`absolute flex items-center bg-white border border-gray-200 hover:border-gray-300 hover:-translate-y-px cursor-grab active:cursor-grabbing ${cardClasses}`}
                                               style={{
                                                 left: hasDate ? `${Math.max(2, Math.min(75, position - 10))}%` : '5%',
-                                                top: `${4 + verticalIndex * 28}px`,
+                                                top: `${4 + verticalIndex * baseCardHeight}px`,
                                               }}
-                                              title={`${extractOutcome(sticky.title)}${sticky.milestoneTitle ? `\n📌 ${extractOutcome(sticky.milestoneTitle)}` : ''}`}
+                                              title={`${extractOutcome(sticky.title)}${sticky.milestoneTitle ? `\n📌 ${extractOutcome(sticky.milestoneTitle)}` : ''}${sticky.deliveryDate ? `\n📅 ${sticky.deliveryDate}` : ''}`}
                                             >
-                                              <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT_COLORS[sticky.status]} shrink-0`}></span>
-                                              <span className={`text-xs font-medium truncate max-w-[100px] ${sticky.isDone ? 'line-through text-gray-400' : 'text-gray-700'}`}>
+                                              <span className={`${dotSize} rounded-full ${STATUS_DOT_COLORS[sticky.status]} shrink-0`}></span>
+                                              <span className={`${fontSize} font-medium truncate ${maxTitleWidth} ${sticky.isDone ? 'line-through text-gray-400' : 'text-gray-700'}`}>
                                                 {extractOutcome(sticky.title)}
-                                            </span>
-                                              {sticky.milestoneTitle && (
+                                              </span>
+                                              {sticky.milestoneTitle && zoomLevel !== 'year' && (
                                                 <span className="text-[9px] text-blue-500 ml-1" title={`Milestone: ${extractOutcome(sticky.milestoneTitle)}`}>📌</span>
                                               )}
-                                          </div>
+                                              {/* Show date on larger zoom levels */}
+                                              {zoomLevel === 'week' && sticky.deliveryDate && (
+                                                <span className="text-[10px] text-gray-400 ml-auto">
+                                                  {new Date(sticky.deliveryDate).toLocaleDateString('en-US', { weekday: 'short' })}
+                                                </span>
+                                              )}
+                                            </div>
                                           );
                                         })}
-                                    </div>
-                                  );
+                                      </div>
+                                    );
                                 })}
                               </div>
                             </div>
