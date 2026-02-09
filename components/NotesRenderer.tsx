@@ -19,28 +19,77 @@ interface Toggle {
   content: ParsedLine[];
 }
 
-// Parse a line and extract any URLs, making them clickable
+// Parse a line and extract any URLs (both raw and markdown-style), making them clickable
 const renderTextWithLinks = (text: string): React.ReactNode => {
-  // URL regex that matches http(s) URLs
-  const urlRegex = /(https?:\/\/[^\s<>"\]]+)/g;
+  // First handle markdown-style links [text](url)
+  // Then handle raw URLs
+  const parts: React.ReactNode[] = [];
+  let remaining = text;
+  let keyIndex = 0;
+  
+  // Regex for markdown links [text](url) and raw URLs
+  const markdownLinkRegex = /\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g;
+  const rawUrlRegex = /(https?:\/\/[^\s<>"\]\)]+)/g;
+  
+  // First pass: extract markdown links
+  let lastIndex = 0;
+  let match;
+  
+  while ((match = markdownLinkRegex.exec(text)) !== null) {
+    // Add text before the link
+    if (match.index > lastIndex) {
+      const beforeText = text.slice(lastIndex, match.index);
+      // Check for raw URLs in this text
+      parts.push(...renderRawUrls(beforeText, keyIndex));
+      keyIndex += 10;
+    }
+    
+    // Add the markdown link
+    const linkText = match[1];
+    const url = match[2];
+    parts.push(
+      <a
+        key={`md-${keyIndex++}`}
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-blue-600 hover:text-blue-800 hover:underline inline-flex items-center gap-0.5"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {linkText}
+        <ExternalLink size={10} className="inline shrink-0" />
+      </a>
+    );
+    
+    lastIndex = match.index + match[0].length;
+  }
+  
+  // Add remaining text after last markdown link
+  if (lastIndex < text.length) {
+    const afterText = text.slice(lastIndex);
+    parts.push(...renderRawUrls(afterText, keyIndex));
+  }
+  
+  return parts.length > 0 ? parts : text;
+};
+
+// Helper to render raw URLs in text
+const renderRawUrls = (text: string, startKey: number): React.ReactNode[] => {
+  const urlRegex = /(https?:\/\/[^\s<>"\]\)]+)/g;
   const parts = text.split(urlRegex);
   
   return parts.map((part, i) => {
     if (part.match(urlRegex)) {
-      // Clean up trailing punctuation that might be accidentally captured
+      // Clean up trailing punctuation
       let url = part;
       let trailing = '';
-      if (url.endsWith(')') && !url.includes('(')) {
-        trailing = ')';
-        url = url.slice(0, -1);
-      }
       if (url.endsWith('.') || url.endsWith(',')) {
-        trailing = url.slice(-1) + trailing;
+        trailing = url.slice(-1);
         url = url.slice(0, -1);
       }
       
       return (
-        <React.Fragment key={i}>
+        <React.Fragment key={`raw-${startKey}-${i}`}>
           <a
             href={url}
             target="_blank"
@@ -55,7 +104,7 @@ const renderTextWithLinks = (text: string): React.ReactNode => {
         </React.Fragment>
       );
     }
-    return <span key={i}>{part}</span>;
+    return <span key={`text-${startKey}-${i}`}>{part}</span>;
   });
 };
 

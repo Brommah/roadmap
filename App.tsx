@@ -11,6 +11,42 @@ import {
 } from 'lucide-react';
 import { getUniqueOwners, getUniqueGroups, formatNotionId, findLane, findQuarter, getDatePositionInQuarter, sortStickyByDate, getQuarterFromDate, getTodayPosition, extractOutcome } from './utils';
 
+// Helper to extract text WITH embedded links from Notion rich_text
+// Returns text with links formatted as [text](url) markdown-style for easy parsing
+const extractRichTextWithLinks = (richText: any[]): string => {
+  if (!Array.isArray(richText)) return '';
+  
+  return richText.map(rt => {
+    const text = rt.plain_text || '';
+    
+    // Check for direct href (hyperlink)
+    if (rt.href) {
+      const url = rt.href.startsWith('/') 
+        ? `https://www.notion.so${rt.href}`
+        : rt.href;
+      return `[${text}](${url})`;
+    }
+    
+    // Check for page mention
+    if (rt.type === 'mention' && rt.mention?.type === 'page') {
+      const pageId = rt.mention.page.id.replace(/-/g, '');
+      return `[${text}](https://www.notion.so/${pageId})`;
+    }
+    
+    // Check for link preview mention
+    if (rt.type === 'mention' && rt.mention?.type === 'link_preview') {
+      return `[${text}](${rt.mention.link_preview.url})`;
+    }
+    
+    // Check for URL mention
+    if (rt.type === 'mention' && rt.mention?.type === 'url') {
+      return `[${text}](${rt.mention.url})`;
+    }
+    
+    return text;
+  }).join('');
+};
+
 // Notion configuration - set these in .env.local (dev) or Vercel env vars (prod)
 // Page IDs for each view
 const PAGE_IDS = {
@@ -459,12 +495,9 @@ export default function App() {
                           }
                         }
                       } else if (siblingText.length > 0) {
-                        // Add item with link if available
-                        if (itemLink) {
-                          noteItems.push(`${siblingType === 'bulleted_list_item' ? '•' : ''} ${siblingText}\n  🔗 ${itemLink}`);
-                        } else {
-                          noteItems.push(`${siblingType === 'bulleted_list_item' ? '• ' : ''}${siblingText}`);
-                        }
+                        // Use extractRichTextWithLinks to get text WITH embedded links
+                        const textWithLinks = extractRichTextWithLinks(siblingRichText);
+                        noteItems.push(`${siblingType === 'bulleted_list_item' ? '• ' : ''}${textWithLinks}`);
                       }
                     } else if (siblingType === 'toggle') {
                       const toggleRichText = siblingBlock.toggle?.rich_text || [];
@@ -563,26 +596,26 @@ export default function App() {
                                   }
                                 }
                               } else if (toggleChild.type === 'paragraph' || toggleChild.type === 'bulleted_list_item' || toggleChild.type === 'numbered_list_item') {
-                                // Extract text content from inside the toggle
+                                // Extract text content WITH links from inside the toggle
                                 const childRichText = toggleChild[toggleChild.type]?.rich_text || [];
-                                const childText = childRichText.map((rt: any) => rt.plain_text).join('');
-                                if (childText.trim()) {
+                                const childTextWithLinks = extractRichTextWithLinks(childRichText);
+                                if (childTextWithLinks.trim()) {
                                   const prefix = toggleChild.type === 'bulleted_list_item' ? '  • ' : 
                                                  toggleChild.type === 'numbered_list_item' ? '  ∙ ' : '  ';
-                                  toggleChildContent.push(`${prefix}${childText}`);
+                                  toggleChildContent.push(`${prefix}${childTextWithLinks}`);
                                 }
                               } else if (toggleChild.type === 'heading_3' || toggleChild.type === 'heading_2') {
                                 const childRichText = toggleChild[toggleChild.type]?.rich_text || [];
-                                const childText = childRichText.map((rt: any) => rt.plain_text).join('');
-                                if (childText.trim()) {
-                                  toggleChildContent.push(`  ▪ ${childText}`);
+                                const childTextWithLinks = extractRichTextWithLinks(childRichText);
+                                if (childTextWithLinks.trim()) {
+                                  toggleChildContent.push(`  ▪ ${childTextWithLinks}`);
                                 }
                               } else if (toggleChild.type === 'toggle') {
                                 // Nested toggle — get its title and content too
                                 const nestedRichText = toggleChild.toggle?.rich_text || [];
-                                const nestedTitle = nestedRichText.map((rt: any) => rt.plain_text).join('');
-                                if (nestedTitle.trim()) {
-                                  toggleChildContent.push(`  ▸ ${nestedTitle}`);
+                                const nestedTitleWithLinks = extractRichTextWithLinks(nestedRichText);
+                                if (nestedTitleWithLinks.trim()) {
+                                  toggleChildContent.push(`  ▸ ${nestedTitleWithLinks}`);
                                 }
                                 // Fetch nested toggle children
                                 if (toggleChild.has_children) {
@@ -596,9 +629,9 @@ export default function App() {
                                         const ncType = nestedChild.type;
                                         const ncRichText = nestedChild[ncType]?.rich_text;
                                         if (Array.isArray(ncRichText)) {
-                                          const ncText = ncRichText.map((rt: any) => rt.plain_text).join('');
-                                          if (ncText.trim()) {
-                                            toggleChildContent.push(`    ${ncText}`);
+                                          const ncTextWithLinks = extractRichTextWithLinks(ncRichText);
+                                          if (ncTextWithLinks.trim()) {
+                                            toggleChildContent.push(`    ${ncTextWithLinks}`);
                                           }
                                         }
                                       }
