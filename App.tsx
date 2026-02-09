@@ -68,6 +68,15 @@ function getWeekOfMonth(date: Date): number {
   return Math.ceil(offsetDate / 7);
 }
 
+// Get ISO week number (1-52/53)
+function getISOWeekNumber(date: Date): number {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+}
+
 // Generate columns based on zoom level
 function generateTimelineColumns(zoomLevel: ZoomLevel, referenceDate: Date = new Date()): TimelineColumn[] {
   const columns: TimelineColumn[] = [];
@@ -121,9 +130,10 @@ function generateTimelineColumns(zoomLevel: ZoomLevel, referenceDate: Date = new
         const weekStartDisplay = new Date(Math.max(weekStart.getTime(), firstDay.getTime()));
         const weekEndDisplay = new Date(Math.min(weekEnd.getTime(), lastDay.getTime()));
         
+        const isoWeek = getISOWeekNumber(weekStart);
         columns.push({
-          id: `week-${weekNum}`,
-          label: `Week ${weekNum}`,
+          id: `week-${isoWeek}`,
+          label: `Week ${isoWeek}`,
           sublabel: `${weekStartDisplay.getDate()}-${weekEndDisplay.getDate()}`,
           startDate: new Date(weekStart),
           endDate: weekEnd,
@@ -2117,38 +2127,55 @@ export default function App() {
                 ))}
               </div>
 
-              {/* Milestones Row (Subtle Pills) - Only show in quarter/year views */}
-              {(zoomLevel === 'quarter' || zoomLevel === 'year') && (
-                <div className="flex border-b border-gray-100 bg-gray-50/50">
-                  <div className="w-[200px] shrink-0 py-3 px-4 flex items-center">
-                    <span className="text-xs font-medium text-gray-500">Milestones</span>
-                  </div>
-                  <div className="flex">
-                      {timelineColumns.map((column) => {
-                        const cellMilestones = milestones.filter(m => m.quarterId === column.id);
-                        return (
-                          <div 
-                            key={`milestone-${column.id}`}
-                            className="shrink-0 py-2 px-3 flex flex-wrap gap-2 items-center min-h-[44px]"
-                            style={{ width: getColumnWidth(zoomLevel) }}
-                          >
-                            {cellMilestones.map(m => (
-                              <button 
-                                key={m.id} 
-                                onClick={() => openMilestoneModal(m)}
-                                className={`bg-blue-50 text-blue-700 font-medium rounded-md hover:bg-blue-100 transition-colors ${
-                                  zoomLevel === 'year' ? 'px-2 py-1 text-[10px]' : 'px-3 py-1.5 text-xs'
-                                }`}
-                              >
-                                {extractOutcome(m.title)}
-                               </button>
-                            ))}
-                          </div>
-                        );
-                      })}
-                  </div>
+              {/* Milestones Row (Subtle Pills) - Show in all views */}
+              <div className="flex border-b border-gray-100 bg-gray-50/50">
+                <div className="w-[200px] shrink-0 py-3 px-4 flex items-center">
+                  <span className="text-xs font-medium text-gray-500">Milestones</span>
                 </div>
-              )}
+                <div className="flex">
+                    {timelineColumns.map((column) => {
+                      // Filter milestones based on view type
+                      const cellMilestones = milestones.filter(m => {
+                        // For quarter/year views, match by quarterId
+                        if (zoomLevel === 'quarter' || zoomLevel === 'year') {
+                          return m.quarterId === column.id;
+                        }
+                        // For week/month views, check if milestone date falls within column date range
+                        // Parse milestone date from title or date field
+                        const dateMatch = m.title.match(/(\d{4}-\d{2}-\d{2})/) || m.date.match(/(\d{4}-\d{2}-\d{2})/);
+                        if (dateMatch) {
+                          const milestoneDate = new Date(dateMatch[1]);
+                          return milestoneDate >= column.startDate && milestoneDate <= column.endDate;
+                        }
+                        // Try parsing natural date format (e.g., "Mar 15, 2026")
+                        const naturalDate = new Date(m.date);
+                        if (!isNaN(naturalDate.getTime())) {
+                          return naturalDate >= column.startDate && naturalDate <= column.endDate;
+                        }
+                        return false;
+                      });
+                      return (
+                        <div 
+                          key={`milestone-${column.id}`}
+                          className="shrink-0 py-2 px-3 flex flex-wrap gap-2 items-center min-h-[44px]"
+                          style={{ width: getColumnWidth(zoomLevel) }}
+                        >
+                          {cellMilestones.map(m => (
+                            <button 
+                              key={m.id} 
+                              onClick={() => openMilestoneModal(m)}
+                              className={`bg-blue-50 text-blue-700 font-medium rounded-md hover:bg-blue-100 transition-colors ${
+                                zoomLevel === 'year' || zoomLevel === 'week' ? 'px-2 py-1 text-[10px]' : 'px-3 py-1.5 text-xs'
+                              }`}
+                            >
+                              {extractOutcome(m.title)}
+                             </button>
+                          ))}
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
             </div>
 
             {/* === SWIMLANES === */}
@@ -2451,16 +2478,19 @@ export default function App() {
               </div>
            </div>
 
-           {/* Blocker */}
-           {editingSticky?.status === 'red' && (
+           {/* Blocker - Show when status is red OR when there's a blocker value */}
+           {(editingSticky?.status === 'red' || editingSticky?.blocker) && (
              <div>
-                <label className="block text-xs text-red-500 mb-1.5">Blocker</label>
+                <label className="block text-xs text-red-500 mb-1.5 flex items-center gap-2">
+                  <AlertTriangle size={12} />
+                  Blocker
+                </label>
                 <input 
                   type="text"
                   value={editingSticky?.blocker || ''}
                   onChange={e => setEditingSticky(prev => prev ? ({ ...prev, blocker: e.target.value }) : null)}
                   placeholder="What's blocking this?"
-                  className="w-full p-2.5 bg-red-50 rounded-lg text-sm focus:ring-2 focus:ring-red-200 outline-none"
+                  className="w-full p-2.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800 focus:ring-2 focus:ring-red-200 outline-none"
                 />
              </div>
            )}
