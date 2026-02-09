@@ -618,7 +618,18 @@ export default function App() {
                               if (siblingBlock.has_children) {
                                 try {
                                   const nestedContent = await fetchToggleContentRecursive(siblingBlock.id, 0, 10);
-                                  noteItems.push(...nestedContent);
+                                  // Extract blockers from nested content before adding to notes
+                                  for (const line of nestedContent) {
+                                    const trimmedLine = line.replace(/^\s+/, '');
+                                    if (trimmedLine.toLowerCase().startsWith('blocker:') || trimmedLine.toLowerCase().startsWith('blocker ')) {
+                                      if (!extractedBlocker) {
+                                        extractedBlocker = trimmedLine.replace(/^\s*blocker[:\s]*/i, '').trim();
+                                        console.log(`    -> Blocker extracted from toggle: "${extractedBlocker}"`);
+                                      }
+                                    } else {
+                                      noteItems.push(line);
+                                    }
+                                  }
                                 } catch (e) {
                                   console.warn('Failed to fetch toggle children:', e);
                                 }
@@ -982,18 +993,33 @@ export default function App() {
                         }
                       }
                       
+                      // Extract blockers from toggle child content before adding to notes
+                      const filteredToggleContent: string[] = [];
+                      for (const line of toggleChildContent) {
+                        const trimmedLine = line.replace(/^\s+/, ''); // Remove leading indent
+                        if (trimmedLine.toLowerCase().startsWith('blocker:') || trimmedLine.toLowerCase().startsWith('blocker ')) {
+                          // Extract blocker from nested content
+                          if (!extractedBlocker) {
+                            extractedBlocker = trimmedLine.replace(/^\s*blocker[:\s]*/i, '').trim();
+                            console.log(`    -> Blocker extracted from toggle: "${extractedBlocker}"`);
+                          }
+                        } else {
+                          filteredToggleContent.push(line);
+                        }
+                      }
+                      
                       if (toggleText && toggleText.length > 0) {
                         let toggleEntry = `▸ ${toggleText}`;
                         if (toggleLink) {
                           toggleEntry += `\n  🔗 ${toggleLink}`;
                         }
-                        if (toggleChildContent.length > 0) {
-                          toggleEntry += '\n' + toggleChildContent.join('\n');
+                        if (filteredToggleContent.length > 0) {
+                          toggleEntry += '\n' + filteredToggleContent.join('\n');
                         }
                         noteItems.push(toggleEntry);
-                      } else if (toggleChildContent.length > 0) {
+                      } else if (filteredToggleContent.length > 0) {
                         // No toggle title but has content
-                        noteItems.push(toggleChildContent.join('\n'));
+                        noteItems.push(filteredToggleContent.join('\n'));
                       }
                     } else if (siblingType === 'child_page') {
                       const pageName = siblingBlock.child_page?.title || '';
@@ -1369,7 +1395,18 @@ export default function App() {
                       if (siblingBlock.has_children) {
                         try {
                           const nestedContent = await fetchToggleContentRecursive(siblingBlock.id, 0, 10);
-                          noteItems.push(...nestedContent);
+                          // Extract blockers from nested content
+                          for (const line of nestedContent) {
+                            const trimmedLine = line.replace(/^\s+/, '');
+                            if (trimmedLine.toLowerCase().startsWith('blocker:') || trimmedLine.toLowerCase().startsWith('blocker ')) {
+                              if (!sticky.blocker) {
+                                sticky.blocker = trimmedLine.replace(/^\s*blocker[:\s]*/i, '').trim();
+                                console.log(`    -> Blocker extracted from toggle: "${sticky.blocker}"`);
+                              }
+                            } else {
+                              noteItems.push(line);
+                            }
+                          }
                         } catch (e) {
                           console.warn('Failed to fetch toggle children:', e);
                         }
@@ -1398,7 +1435,18 @@ export default function App() {
                               if (sibChild.has_children) {
                                 try {
                                   const nestedContent = await fetchToggleContentRecursive(sibChild.id, 0, 10);
-                                  noteItems.push(...nestedContent);
+                                  // Extract blockers from nested content
+                                  for (const line of nestedContent) {
+                                    const trimmedLine = line.replace(/^\s+/, '');
+                                    if (trimmedLine.toLowerCase().startsWith('blocker:') || trimmedLine.toLowerCase().startsWith('blocker ')) {
+                                      if (!sticky.blocker) {
+                                        sticky.blocker = trimmedLine.replace(/^\s*blocker[:\s]*/i, '').trim();
+                                        console.log(`    -> Blocker extracted from nested toggle: "${sticky.blocker}"`);
+                                      }
+                                    } else {
+                                      noteItems.push(line);
+                                    }
+                                  }
                                 } catch (e) {
                                   console.warn('Failed to fetch nested toggle children:', e);
                                 }
