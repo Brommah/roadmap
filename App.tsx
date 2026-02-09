@@ -131,9 +131,10 @@ function generateTimelineColumns(zoomLevel: ZoomLevel, referenceDate: Date = new
         const weekEndDisplay = new Date(Math.min(weekEnd.getTime(), lastDay.getTime()));
         
         const isoWeek = getISOWeekNumber(weekStart);
+        const displayWeek = isoWeek - 1; // Week 0-based to match Execution summaries
         columns.push({
           id: `week-${isoWeek}`,
-          label: `Week ${isoWeek}`,
+          label: `Week ${String(displayWeek).padStart(2, '0')}`,
           sublabel: `${weekStartDisplay.getDate()}-${weekEndDisplay.getDate()}`,
           startDate: new Date(weekStart),
           endDate: weekEnd,
@@ -537,6 +538,7 @@ export default function App() {
                           let deliveryDateBlockId = '';
                           let extractedStatus: 'green' | 'yellow' | 'red' = 'green';
                           let extractedBlocker = '';
+                          let extractedWikiUrl = '';
                           const noteItems: string[] = [];
                           
                           for (let j = startIdx + 1; j < endIdx; j++) {
@@ -605,6 +607,24 @@ export default function App() {
                                 // Extract blocker description - handle "Blocker:" or "Blocker " formats
                                 extractedBlocker = siblingText.replace(/^\s*blocker[:\s]*/i, '').trim();
                                 console.log(`    -> Blocker extracted: "${extractedBlocker}"`);
+                              } else if (siblingText.toLowerCase().startsWith('knowledge base:') || siblingText.toLowerCase().startsWith('wiki:')) {
+                                // Extract wiki/knowledge base URL
+                                for (const rt of siblingRichText) {
+                                  if (rt.href) {
+                                    extractedWikiUrl = rt.href.startsWith('/') ? `https://www.notion.so${rt.href}` : rt.href;
+                                    break;
+                                  }
+                                  if (rt.type === 'mention' && rt.mention?.type === 'page') {
+                                    extractedWikiUrl = `https://www.notion.so/${rt.mention.page.id.replace(/-/g, '')}`;
+                                    break;
+                                  }
+                                }
+                                // Fallback: extract URL from text
+                                if (!extractedWikiUrl) {
+                                  const urlMatch = siblingText.match(/(https?:\/\/[^\s]+)/);
+                                  if (urlMatch) extractedWikiUrl = urlMatch[1];
+                                }
+                                console.log(`    -> Wiki URL extracted: "${extractedWikiUrl}"`);
                               } else if (siblingText.length > 0) {
                                 // Use extractRichTextWithLinks to preserve embedded links
                                 const textWithLinks = extractRichTextWithLinks(siblingRichText);
@@ -654,7 +674,7 @@ export default function App() {
                             isDone: false,
                             status: extractedStatus,
                             blocker: extractedBlocker || undefined,
-                            wikiUrl: '',
+                            wikiUrl: extractedWikiUrl || '',
                             deliveryDate: deliveryDate,
                             notes: noteItems.join('\n'),
                             milestoneId: currentMilestoneId,
@@ -748,6 +768,7 @@ export default function App() {
                   let deliveryDateBlockId = '';
                   let extractedStatus: 'green' | 'yellow' | 'red' = 'green';
                   let extractedBlocker = '';
+                  let extractedWikiUrl = '';
                   const parentBlockId = block.id; // synced_block ID
                   const noteItems: string[] = [];
                   
@@ -852,6 +873,23 @@ export default function App() {
                         // Extract blocker description - handle "Blocker:" or "Blocker " formats
                         extractedBlocker = siblingText.replace(/^\s*blocker[:\s]*/i, '').trim();
                         console.log(`    -> Blocker extracted: "${extractedBlocker}"`);
+                      } else if (siblingText.toLowerCase().startsWith('knowledge base:') || siblingText.toLowerCase().startsWith('wiki:')) {
+                        // Extract wiki/knowledge base URL
+                        for (const rt of siblingRichText) {
+                          if (rt.href) {
+                            extractedWikiUrl = rt.href.startsWith('/') ? `https://www.notion.so${rt.href}` : rt.href;
+                            break;
+                          }
+                          if (rt.type === 'mention' && rt.mention?.type === 'page') {
+                            extractedWikiUrl = `https://www.notion.so/${rt.mention.page.id.replace(/-/g, '')}`;
+                            break;
+                          }
+                        }
+                        if (!extractedWikiUrl) {
+                          const urlMatch = siblingText.match(/(https?:\/\/[^\s]+)/);
+                          if (urlMatch) extractedWikiUrl = urlMatch[1];
+                        }
+                        console.log(`    -> Wiki URL extracted: "${extractedWikiUrl}"`);
                       } else if (siblingText.length > 0) {
                         // Use extractRichTextWithLinks to preserve embedded links
                         const textWithLinks = extractRichTextWithLinks(siblingRichText);
@@ -1067,7 +1105,7 @@ export default function App() {
                     isDone: false,
                     status: extractedStatus,
                     blocker: extractedBlocker || undefined,
-                    wikiUrl: '', // Will be set from KNOWN_URLS based on lane
+                    wikiUrl: extractedWikiUrl || '',
                     deliveryDate: deliveryDate,
                     notes: notes.trim(),
                     milestoneId: currentMilestoneId,
@@ -2659,11 +2697,11 @@ export default function App() {
 
                      return (
                         <div key={lane.id} className="border border-slate-200 rounded-lg overflow-hidden">
-                           <div className={`px-3 py-2 ${lane.headerColorClass} bg-opacity-10 border-b border-slate-100 flex items-center gap-2`}>
-                              <div className={`p-1 rounded-full text-white ${lane.headerColorClass} shadow-sm`}>
-                                 {React.cloneElement(lane.icon as React.ReactElement, { size: 12 })}
+                           <div className={`px-3 py-2 bg-slate-100 border-b border-slate-200 flex items-center gap-2`}>
+                              <div className={`p-1.5 rounded ${lane.headerColorClass} shadow-sm flex items-center justify-center`}>
+                                 {React.cloneElement(lane.icon as React.ReactElement, { size: 12, className: 'text-white' })}
                               </div>
-                              <span className="text-xs font-bold text-slate-800">{lane.title}</span>
+                              <span className="text-xs font-bold text-slate-700">{lane.title}</span>
                            </div>
                            <div className="bg-slate-50 p-2 space-y-2">
                               {laneStickies.map(sticky => (
