@@ -1427,6 +1427,12 @@ export default function App() {
                     }
                     console.log(`    -> Status: "${sticky.status}"`);
                   }
+                  // Extract Blocker from direct paragraph
+                  else if (sibText.trim().toLowerCase().startsWith('blocker:') || sibText.trim().toLowerCase().startsWith('blocker ')) {
+                    sticky.blockerBlockId = siblingBlock.id;
+                    sticky.blocker = sibText.replace(/^\s*blocker[:\s]*/i, '').trim();
+                    console.log(`    -> Blocker: "${sticky.blocker}"`);
+                  }
                   // Collect other content as notes
                   else if (sibText.length > 0) {
                     if (sibType === 'bulleted_list_item') {
