@@ -1855,167 +1855,169 @@ export default function App() {
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-white text-gray-900">
       
       {/* === HEADER (60px, Minimal) === */}
-      <header className="h-[60px] shrink-0 bg-white border-b border-gray-100 px-6 flex items-center justify-between z-50">
+      <header className="h-[56px] shrink-0 bg-slate-900 px-4 flex items-center justify-between z-50">
          
-         {/* Left: Logo + Filters */}
-         <div className="flex items-center gap-8">
-            {/* Logo */}
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 bg-gray-900 rounded-lg flex items-center justify-center">
-                  <FolderOpen size={16} className="text-white" />
+         {/* Left: Brand + View Toggle */}
+         <div className="flex items-center gap-6">
+            {/* Brand */}
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-gradient-to-br from-violet-500 to-purple-600 rounded-lg flex items-center justify-center">
+                <FolderOpen size={16} className="text-white" />
               </div>
-              <div>
-                  <h1 className="text-base font-semibold text-gray-900 leading-tight">Outcome Roadmap</h1>
-              </div>
-            </div>
-
-              {/* CEF/CERE Toggle */}
-              <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
-                <button
-                  onClick={() => setActiveView('cef')}
-                  className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
-                    activeView === 'cef'
-                      ? 'bg-gray-900 text-white'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  CEF
-                </button>
-                <button
-                  onClick={() => setActiveView('cere')}
-                  className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
-                    activeView === 'cere'
-                      ? 'bg-gray-900 text-white'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  CERE
-                </button>
+              <div className="flex items-center gap-2">
+                <h1 className="text-sm font-semibold text-white">Roadmap</h1>
+                <span className="text-[10px] text-slate-400 uppercase tracking-wider">Outcome Driven</span>
               </div>
             </div>
 
-            {/* Filters (Ghost Button Style) */}
-            <div className="flex items-center gap-1">
+            {/* CEF/CERE Toggle */}
+            <div className="flex items-center bg-slate-800 rounded-lg p-0.5">
+              <button
+                onClick={() => setActiveView('cef')}
+                className={`px-4 py-1.5 text-xs font-medium rounded-md transition-all ${
+                  activeView === 'cef'
+                    ? 'bg-gradient-to-r from-violet-500 to-purple-600 text-white'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                CEF
+              </button>
+              <button
+                onClick={() => setActiveView('cere')}
+                className={`px-4 py-1.5 text-xs font-medium rounded-md transition-all ${
+                  activeView === 'cere'
+                    ? 'bg-gradient-to-r from-violet-500 to-purple-600 text-white'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                CERE
+              </button>
+            </div>
+         </div>
+
+         {/* Center: Timeline Controls */}
+         <div className="flex items-center gap-3">
+            {/* Zoom Level */}
+            <div className="flex items-center bg-slate-800 rounded-lg p-0.5">
+              {(['week', 'month', 'quarter', 'year'] as ZoomLevel[]).map((level) => (
+                <button
+                  key={level}
+                  onClick={() => {
+                    setZoomLevel(level);
+                    setReferenceDate(new Date());
+                  }}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all capitalize ${
+                    zoomLevel === level
+                      ? 'bg-slate-700 text-white'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  {level}
+                </button>
+              ))}
+            </div>
+
+            {/* Navigation */}
+            {zoomLevel !== 'quarter' && (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => {
+                    const newDate = new Date(referenceDate);
+                    if (zoomLevel === 'week') newDate.setDate(newDate.getDate() - 7);
+                    else if (zoomLevel === 'month') newDate.setMonth(newDate.getMonth() - 1);
+                    else if (zoomLevel === 'year') newDate.setFullYear(newDate.getFullYear() - 1);
+                    setReferenceDate(newDate);
+                  }}
+                  className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors"
+                >
+                  <ChevronRight size={16} className="rotate-180" />
+                </button>
+                <button
+                  onClick={() => setReferenceDate(new Date())}
+                  className="px-2.5 py-1 text-xs text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors"
+                >
+                  Today
+                </button>
+                <button
+                  onClick={() => {
+                    const newDate = new Date(referenceDate);
+                    if (zoomLevel === 'week') newDate.setDate(newDate.getDate() + 7);
+                    else if (zoomLevel === 'month') newDate.setMonth(newDate.getMonth() + 1);
+                    else if (zoomLevel === 'year') newDate.setFullYear(newDate.getFullYear() + 1);
+                    setReferenceDate(newDate);
+                  }}
+                  className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors"
+                >
+                  <ChevronRight size={16} />
+                </button>
+                <span className="text-xs text-slate-400 ml-2 min-w-[100px]">
+                  {zoomLevel === 'week' && referenceDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                  {zoomLevel === 'month' && referenceDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                  {zoomLevel === 'year' && referenceDate.getFullYear()}
+                </span>
+              </div>
+            )}
+         </div>
+
+         {/* Right: Filters + KPIs + Actions */}
+         <div className="flex items-center gap-4">
+            {/* Filters */}
+            <div className="flex items-center gap-2">
               {/* Search */}
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
                 <input 
                   type="text" 
                   placeholder="Search..." 
-                  className="pl-9 pr-3 py-2 bg-gray-100 rounded-lg text-sm w-48 focus:bg-white focus:ring-2 focus:ring-gray-200 outline-none placeholder:text-gray-400"
+                  className="pl-8 pr-3 py-1.5 bg-slate-800 rounded-lg text-xs w-36 text-white focus:bg-slate-700 focus:ring-1 focus:ring-violet-500 outline-none placeholder:text-slate-500"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
 
-              {/* Status Filter */}
+              {/* Status */}
               <select 
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value as StickyStatus | 'done' | 'all')}
-                className="px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg bg-transparent border-none outline-none cursor-pointer"
+                className="px-2.5 py-1.5 text-xs text-slate-400 hover:text-white bg-slate-800 rounded-lg border-none outline-none cursor-pointer"
               >
-                <option value="all">Status</option>
+                <option value="all">All Status</option>
                 <option value="green">● On Track</option>
                 <option value="yellow">● At Risk</option>
                 <option value="red">● Blocked</option>
                 <option value="done">○ Done</option>
               </select>
 
-              {/* Zoom Level Buttons (like Google Calendar) */}
-              <div className="flex items-center bg-gray-100 rounded-lg p-0.5 ml-2">
-                {(['week', 'month', 'quarter', 'year'] as ZoomLevel[]).map((level) => (
-                  <button
-                    key={level}
-                    onClick={() => {
-                      setZoomLevel(level);
-                      setReferenceDate(new Date()); // Reset to current date when changing zoom
-                    }}
-                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all capitalize ${
-                      zoomLevel === level
-                        ? 'bg-gray-900 text-white'
-                        : 'text-gray-600 hover:text-gray-900'
-                    }`}
-                  >
-                    {level}
-                  </button>
-                ))}
-              </div>
-
-              {/* Navigation arrows for timeline (when not in quarter view) */}
-              {zoomLevel !== 'quarter' && (
-                <div className="flex items-center gap-1 ml-2">
-                  <button
-                    onClick={() => {
-                      const newDate = new Date(referenceDate);
-                      if (zoomLevel === 'week') newDate.setDate(newDate.getDate() - 7);
-                      else if (zoomLevel === 'month') newDate.setMonth(newDate.getMonth() - 1);
-                      else if (zoomLevel === 'year') newDate.setFullYear(newDate.getFullYear() - 1);
-                      setReferenceDate(newDate);
-                    }}
-                    className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
-                    title="Previous"
-                  >
-                    <ChevronRight size={16} className="rotate-180" />
-                  </button>
-                  <button
-                    onClick={() => setReferenceDate(new Date())}
-                    className="px-2 py-1 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded"
-                  >
-                    Today
-                  </button>
-                  <button
-                    onClick={() => {
-                      const newDate = new Date(referenceDate);
-                      if (zoomLevel === 'week') newDate.setDate(newDate.getDate() + 7);
-                      else if (zoomLevel === 'month') newDate.setMonth(newDate.getMonth() + 1);
-                      else if (zoomLevel === 'year') newDate.setFullYear(newDate.getFullYear() + 1);
-                      setReferenceDate(newDate);
-                    }}
-                    className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
-                    title="Next"
-                  >
-                    <ChevronRight size={16} />
-                  </button>
-                  <span className="text-xs text-gray-500 ml-2">
-                    {zoomLevel === 'week' && referenceDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
-                    {zoomLevel === 'month' && referenceDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                    {zoomLevel === 'year' && referenceDate.getFullYear()}
-                  </span>
-                </div>
-              )}
-
-              {/* Owner Filter */}
+              {/* Owner */}
               <select 
                 value={ownerFilter}
                 onChange={(e) => setOwnerFilter(e.target.value)}
-                className="px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg bg-transparent border-none outline-none cursor-pointer"
+                className="px-2.5 py-1.5 text-xs text-slate-400 hover:text-white bg-slate-800 rounded-lg border-none outline-none cursor-pointer max-w-[120px]"
               >
-                <option value="all">Owner</option>
+                <option value="all">All Owners</option>
                 {uniqueOwners.filter(o => o !== 'Unassigned').map(owner => (
                   <option key={owner} value={owner}>{owner}</option>
                 ))}
                 <option value="Unassigned">Unassigned</option>
               </select>
-
             </div>
-         </div>
 
-         {/* Right: KPIs + Actions */}
-         <div className="flex items-center gap-6">
-            {/* KPI Dots (Minimal) */}
-            <div className="flex items-center gap-4">
+            {/* Divider */}
+            <div className="w-px h-6 bg-slate-700"></div>
+
+            {/* KPIs */}
+            <div className="flex items-center gap-3">
               <button 
                 onClick={() => setStatusFilter('green')}
-                className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900"
+                className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition-colors"
                 title="On Track"
               >
-                <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
                 <span className="font-medium">{healthStats.green}</span>
               </button>
               <button 
                 onClick={() => setStatusFilter('yellow')}
-                className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900"
+                className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition-colors"
                 title="At Risk"
               >
                 <span className="w-2 h-2 rounded-full bg-amber-400"></span>
@@ -2023,7 +2025,7 @@ export default function App() {
               </button>
               <button 
                 onClick={() => setStatusFilter('red')}
-                className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900"
+                className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition-colors"
                 title="Blocked"
               >
                 <span className="w-2 h-2 rounded-full bg-red-500"></span>
@@ -2032,18 +2034,11 @@ export default function App() {
             </div>
 
             {/* Actions */}
-            <div className="flex items-center gap-1">
-              <button 
-                onClick={handleCopyPrompt}
-                title="Copy Miro AI Prompt"
-                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
-              >
-                <Copy size={16} />
-              </button>
+            <div className="flex items-center gap-0.5">
               <button 
                 onClick={handleResetBoard}
                 title="Refresh from Notion"
-                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
+                className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
               >
                 <RefreshCw size={16} />
               </button>
