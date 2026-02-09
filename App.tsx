@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { StickyCard } from './components/StickyCard';
 import { Modal } from './components/Modal';
+import { NotesRenderer } from './components/NotesRenderer';
 import { CEF_LANES, CERE_LANES, QUARTERS, INITIAL_STICKIES, INITIAL_MILESTONES } from './constants';
 import { StickyNote, Milestone, StickyStatus, Lane } from './types';
 import { 
@@ -2026,69 +2027,8 @@ export default function App() {
            {editingSticky?.notes && (
               <div>
                <label className="block text-xs text-gray-400 mb-1.5">Notes</label>
-               <div className="text-sm text-gray-600 leading-relaxed space-y-0.5">
-                 {editingSticky.notes.split('\n').map((line, idx) => {
-                   // Check if line is a URL (engineering or other link)
-                   if (line.trim().startsWith('🔗 ')) {
-                     const url = line.trim().replace('🔗 ', '');
-                     const isEngineering = editingSticky.notes?.split('\n')[idx - 1]?.includes('Engineering');
-                     return (
-                       <a 
-                         key={idx}
-                         href={url}
-                         target="_blank"
-                         rel="noopener noreferrer"
-                         className="flex items-center gap-1 text-blue-600 hover:text-blue-800 hover:underline pl-2"
-                       >
-                         🔗 {isEngineering ? 'View Engineering Deliverable' : 'Open Link'}
-                         <ExternalLink size={12} />
-                       </a>
-                     );
-                   }
-                   // Toggle header (▸)
-                   if (line.trim().startsWith('▸ ')) {
-                     return (
-                       <div key={idx} className="font-medium text-gray-800 mt-2 first:mt-0 flex items-center gap-1.5">
-                         <ChevronRight size={12} className="text-gray-400" />
-                         <span>{line.trim().replace('▸ ', '')}</span>
-                       </div>
-                     );
-                   }
-                   // Indented toggle content (starts with spaces)
-                   if (line.startsWith('  ') && !line.trim().startsWith('🔗')) {
-                     const depth = line.match(/^(\s+)/)?.[1]?.length || 2;
-                     const paddingClass = depth >= 4 ? 'pl-8' : 'pl-4';
-                     return (
-                       <p key={idx} className={`${paddingClass} text-gray-500 text-xs leading-relaxed`}>
-                         {line.trim()}
-                       </p>
-                     );
-                   }
-                   // Check if line contains a Notion URL
-                   if (line.includes('notion.so/')) {
-                     const urlMatch = line.match(/(https:\/\/www\.notion\.so\/[^\s]+)/);
-                     if (urlMatch) {
-                       const url = urlMatch[1];
-                       const prefix = line.split('https://')[0];
-                       return (
-                         <div key={idx} className="flex items-center gap-1">
-                           <span>{prefix}</span>
-                           <a 
-                             href={url}
-                             target="_blank"
-                             rel="noopener noreferrer"
-                             className="text-blue-600 hover:text-blue-800 hover:underline inline-flex items-center gap-1"
-                           >
-                             Open <ExternalLink size={12} />
-                           </a>
-                         </div>
-                       );
-                     }
-                   }
-                   return <p key={idx}>{line}</p>;
-                 })}
-           </div>
-           </div>
+               <NotesRenderer notes={editingSticky.notes} />
+              </div>
            )}
         </div>
       </Modal>
