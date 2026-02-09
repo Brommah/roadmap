@@ -2321,7 +2321,7 @@ export default function App() {
                                                 left: hasDate ? `${Math.max(2, Math.min(75, position - 10))}%` : '5%',
                                                 top: `${4 + verticalIndex * baseCardHeight}px`,
                                               }}
-                                              title={`${extractOutcome(sticky.title)}${sticky.milestoneTitle ? `\n📌 ${extractOutcome(sticky.milestoneTitle)}` : ''}${sticky.deliveryDate ? `\n📅 ${sticky.deliveryDate}` : ''}`}
+                                              title={`${extractOutcome(sticky.title)}${sticky.milestoneTitle ? `\n📌 ${extractOutcome(sticky.milestoneTitle)}` : ''}${sticky.deliveryDate ? `\n📅 ${sticky.deliveryDate}` : ''}${sticky.blocker ? `\n🚫 Blocker: ${sticky.blocker}` : ''}`}
                                             >
                                               <span className={`${dotSize} rounded-full ${STATUS_DOT_COLORS[sticky.status]} shrink-0`}></span>
                                               <span className={`${fontSize} font-medium truncate ${maxTitleWidth} ${sticky.isDone ? 'line-through text-gray-400' : 'text-gray-700'}`}>
@@ -2330,8 +2330,17 @@ export default function App() {
                                               {sticky.milestoneTitle && zoomLevel !== 'year' && (
                                                 <span className="text-[9px] text-blue-500 ml-1" title={`Milestone: ${extractOutcome(sticky.milestoneTitle)}`}>📌</span>
                                               )}
+                                              {/* Show blocker indicator when blocked */}
+                                              {sticky.blocker && sticky.status === 'red' && zoomLevel !== 'year' && (
+                                                <span 
+                                                  className="text-[9px] text-red-500 ml-1 truncate max-w-[60px]" 
+                                                  title={`Blocker: ${sticky.blocker}`}
+                                                >
+                                                  🚫 {zoomLevel === 'week' ? sticky.blocker : ''}
+                                                </span>
+                                              )}
                                               {/* Show date on larger zoom levels */}
-                                              {zoomLevel === 'week' && sticky.deliveryDate && (
+                                              {zoomLevel === 'week' && sticky.deliveryDate && !sticky.blocker && (
                                                 <span className="text-[10px] text-gray-400 ml-auto">
                                                   {new Date(sticky.deliveryDate).toLocaleDateString('en-US', { weekday: 'short' })}
                                                 </span>
