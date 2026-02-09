@@ -640,12 +640,14 @@ export default function App() {
                                   const nestedContent = await fetchToggleContentRecursive(siblingBlock.id, 0, 10);
                                   // Extract blockers from nested content before adding to notes
                                   for (const line of nestedContent) {
-                                    const trimmedLine = line.replace(/^\s+/, '');
+                                    // Remove leading whitespace and bullet prefixes (• ∙ ▪)
+                                    const trimmedLine = line.replace(/^\s*[•∙▪]\s*/, '').replace(/^\s+/, '');
                                     if (trimmedLine.toLowerCase().startsWith('blocker:') || trimmedLine.toLowerCase().startsWith('blocker ')) {
                                       if (!extractedBlocker) {
                                         extractedBlocker = trimmedLine.replace(/^\s*blocker[:\s]*/i, '').trim();
                                         console.log(`    -> Blocker extracted from toggle: "${extractedBlocker}"`);
                                       }
+                                      // Don't add blocker line to notes
                                     } else {
                                       noteItems.push(line);
                                     }
@@ -1034,13 +1036,15 @@ export default function App() {
                       // Extract blockers from toggle child content before adding to notes
                       const filteredToggleContent: string[] = [];
                       for (const line of toggleChildContent) {
-                        const trimmedLine = line.replace(/^\s+/, ''); // Remove leading indent
+                        // Remove leading whitespace and bullet prefixes (• ∙ ▪)
+                        const trimmedLine = line.replace(/^\s*[•∙▪]\s*/, '').replace(/^\s+/, '');
                         if (trimmedLine.toLowerCase().startsWith('blocker:') || trimmedLine.toLowerCase().startsWith('blocker ')) {
                           // Extract blocker from nested content
                           if (!extractedBlocker) {
                             extractedBlocker = trimmedLine.replace(/^\s*blocker[:\s]*/i, '').trim();
                             console.log(`    -> Blocker extracted from toggle: "${extractedBlocker}"`);
                           }
+                          // Don't add blocker line to notes
                         } else {
                           filteredToggleContent.push(line);
                         }
@@ -1435,12 +1439,14 @@ export default function App() {
                           const nestedContent = await fetchToggleContentRecursive(siblingBlock.id, 0, 10);
                           // Extract blockers from nested content
                           for (const line of nestedContent) {
-                            const trimmedLine = line.replace(/^\s+/, '');
+                            // Remove leading whitespace and bullet prefixes (• ∙ ▪)
+                            const trimmedLine = line.replace(/^\s*[•∙▪]\s*/, '').replace(/^\s+/, '');
                             if (trimmedLine.toLowerCase().startsWith('blocker:') || trimmedLine.toLowerCase().startsWith('blocker ')) {
                               if (!sticky.blocker) {
                                 sticky.blocker = trimmedLine.replace(/^\s*blocker[:\s]*/i, '').trim();
                                 console.log(`    -> Blocker extracted from toggle: "${sticky.blocker}"`);
                               }
+                              // Don't add blocker line to notes
                             } else {
                               noteItems.push(line);
                             }
@@ -1475,12 +1481,14 @@ export default function App() {
                                   const nestedContent = await fetchToggleContentRecursive(sibChild.id, 0, 10);
                                   // Extract blockers from nested content
                                   for (const line of nestedContent) {
-                                    const trimmedLine = line.replace(/^\s+/, '');
+                                    // Remove leading whitespace and bullet prefixes (• ∙ ▪)
+                                    const trimmedLine = line.replace(/^\s*[•∙▪]\s*/, '').replace(/^\s+/, '');
                                     if (trimmedLine.toLowerCase().startsWith('blocker:') || trimmedLine.toLowerCase().startsWith('blocker ')) {
                                       if (!sticky.blocker) {
                                         sticky.blocker = trimmedLine.replace(/^\s*blocker[:\s]*/i, '').trim();
                                         console.log(`    -> Blocker extracted from nested toggle: "${sticky.blocker}"`);
                                       }
+                                      // Don't add blocker line to notes
                                     } else {
                                       noteItems.push(line);
                                     }
