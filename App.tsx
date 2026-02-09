@@ -525,6 +525,8 @@ export default function App() {
                           let ownerBlockId = '';
                           let extractedDeliveryDate = '';
                           let deliveryDateBlockId = '';
+                          let extractedStatus: 'green' | 'yellow' | 'red' = 'green';
+                          let extractedBlocker = '';
                           const noteItems: string[] = [];
                           
                           for (let j = startIdx + 1; j < endIdx; j++) {
@@ -575,6 +577,21 @@ export default function App() {
                                   }
                                 }
                                 console.log(`    -> Delivery date extracted: "${extractedDeliveryDate}"`);
+                              } else if (siblingText.toLowerCase().startsWith('status:')) {
+                                // Extract status (Red/Yellow/Green)
+                                const statusValue = siblingText.replace(/^status[:\s]*/i, '').trim().toLowerCase();
+                                if (statusValue.includes('red') || statusValue.includes('<80%') || statusValue.includes('at risk')) {
+                                  extractedStatus = 'red';
+                                } else if (statusValue.includes('yellow') || statusValue.includes('>80%') || statusValue.includes('little off')) {
+                                  extractedStatus = 'yellow';
+                                } else {
+                                  extractedStatus = 'green';
+                                }
+                                console.log(`    -> Status extracted: "${extractedStatus}"`);
+                              } else if (siblingText.toLowerCase().startsWith('blocker:')) {
+                                // Extract blocker description
+                                extractedBlocker = siblingText.replace(/^blocker[:\s]*/i, '').trim();
+                                console.log(`    -> Blocker extracted: "${extractedBlocker}"`);
                               } else if (siblingText.length > 0) {
                                 // Use extractRichTextWithLinks to preserve embedded links
                                 const textWithLinks = extractRichTextWithLinks(siblingRichText);
@@ -602,7 +619,7 @@ export default function App() {
                             if (qFromDate) assignedQuarterId = qFromDate;
                           }
                           
-                          console.log(`Creating sticky: "${deliverableTitle}", owner="${owner}", date="${deliveryDate}"`);
+                          console.log(`Creating sticky: "${deliverableTitle}", owner="${owner}", date="${deliveryDate}", status="${extractedStatus}", blocker="${extractedBlocker}"`);
                           
                           newStickies.push({
                             id: deliverableBlock.id,
@@ -611,7 +628,8 @@ export default function App() {
                             laneId: lane.id,
                             quarterId: assignedQuarterId,
                             isDone: false,
-                            status: 'green',
+                            status: extractedStatus,
+                            blocker: extractedBlocker || undefined,
                             wikiUrl: '',
                             deliveryDate: deliveryDate,
                             notes: noteItems.join('\n'),
@@ -704,6 +722,8 @@ export default function App() {
                   let ownerBlockId = '';
                   let extractedDeliveryDate = '';
                   let deliveryDateBlockId = '';
+                  let extractedStatus: 'green' | 'yellow' | 'red' = 'green';
+                  let extractedBlocker = '';
                   const parentBlockId = block.id; // synced_block ID
                   const noteItems: string[] = [];
                   
@@ -790,6 +810,21 @@ export default function App() {
                             }
                           }
                         }
+                      } else if (siblingText.toLowerCase().startsWith('status:')) {
+                        // Extract status (Red/Yellow/Green)
+                        const statusValue = siblingText.replace(/^status[:\s]*/i, '').trim().toLowerCase();
+                        if (statusValue.includes('red') || statusValue.includes('<80%') || statusValue.includes('at risk')) {
+                          extractedStatus = 'red';
+                        } else if (statusValue.includes('yellow') || statusValue.includes('>80%') || statusValue.includes('little off')) {
+                          extractedStatus = 'yellow';
+                        } else {
+                          extractedStatus = 'green';
+                        }
+                        console.log(`    -> Status extracted: "${extractedStatus}"`);
+                      } else if (siblingText.toLowerCase().startsWith('blocker:')) {
+                        // Extract blocker description
+                        extractedBlocker = siblingText.replace(/^blocker[:\s]*/i, '').trim();
+                        console.log(`    -> Blocker extracted: "${extractedBlocker}"`);
                       } else if (siblingText.length > 0) {
                         // Use extractRichTextWithLinks to preserve embedded links
                         const textWithLinks = extractRichTextWithLinks(siblingRichText);
@@ -980,7 +1015,7 @@ export default function App() {
                     notes += noteItems.join('\n');
                   }
                   
-                  console.log(`Found deliverable: "${deliverableTitle}", date=${deliveryDate}, milestone="${currentMilestoneTitle}", notes="${notes}", ownerBlockId=${ownerBlockId}, deliveryDateBlockId=${deliveryDateBlockId}`);
+                  console.log(`Found deliverable: "${deliverableTitle}", date=${deliveryDate}, status="${extractedStatus}", blocker="${extractedBlocker}", milestone="${currentMilestoneTitle}"`);
                   newStickies.push({
                     id: deliverableBlock.id,
                     title: deliverableTitle,
@@ -988,7 +1023,8 @@ export default function App() {
                     laneId: currentLaneId,
                     quarterId: assignedQuarterId,
                     isDone: false,
-                    status: 'green',
+                    status: extractedStatus,
+                    blocker: extractedBlocker || undefined,
                     wikiUrl: '', // Will be set from KNOWN_URLS based on lane
                     deliveryDate: deliveryDate,
                     notes: notes.trim(),
