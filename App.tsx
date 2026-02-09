@@ -543,8 +543,11 @@ export default function App() {
                             const siblingBlock = syncData.results[j];
                             const siblingType = siblingBlock.type;
                             
-                            if (siblingType === 'paragraph' || siblingType === 'bulleted_list_item') {
-                              const siblingRichText = siblingBlock[siblingType]?.rich_text || [];
+                            if (siblingType === 'paragraph' || siblingType === 'bulleted_list_item' || siblingType === 'callout') {
+                              // Handle callout blocks (colored background text) - rich_text is at different path
+                              const siblingRichText = siblingType === 'callout' 
+                                ? siblingBlock.callout?.rich_text || []
+                                : siblingBlock[siblingType]?.rich_text || [];
                               const siblingText = siblingRichText.map((rt: any) => rt.plain_text).join('');
                               
                               console.log(`  Sibling block: "${siblingText.substring(0, 50)}..."`);
@@ -741,8 +744,11 @@ export default function App() {
                     const siblingBlock = syncChildrenData.results[j];
                     const siblingType = siblingBlock.type;
                     
-                    if (siblingType === 'paragraph' || siblingType === 'bulleted_list_item') {
-                      const siblingRichText = siblingBlock[siblingType]?.rich_text || [];
+                    if (siblingType === 'paragraph' || siblingType === 'bulleted_list_item' || siblingType === 'callout') {
+                      // Handle callout blocks (colored background text) - rich_text is at different path
+                      const siblingRichText = siblingType === 'callout' 
+                        ? siblingBlock.callout?.rich_text || []
+                        : siblingBlock[siblingType]?.rich_text || [];
                       const siblingText = siblingRichText.map((rt: any) => rt.plain_text).join('');
                       
                       // Extract any links from the rich text
