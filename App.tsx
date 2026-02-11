@@ -131,10 +131,9 @@ function generateTimelineColumns(zoomLevel: ZoomLevel, referenceDate: Date = new
         const weekEndDisplay = new Date(Math.min(weekEnd.getTime(), lastDay.getTime()));
         
         const isoWeek = getISOWeekNumber(weekStart);
-        const displayWeek = isoWeek - 1; // Week 0-based to match Execution summaries
         columns.push({
           id: `week-${isoWeek}`,
-          label: `Week ${String(displayWeek).padStart(2, '0')}`,
+          label: `Week ${isoWeek}`,
           sublabel: `${weekStartDisplay.getDate()}-${weekEndDisplay.getDate()}`,
           startDate: new Date(weekStart),
           endDate: weekEnd,
@@ -538,7 +537,6 @@ export default function App() {
                           let deliveryDateBlockId = '';
                           let extractedStatus: 'green' | 'yellow' | 'red' = 'green';
                           let extractedBlocker = '';
-                          let extractedWikiUrl = '';
                           const noteItems: string[] = [];
                           
                           for (let j = startIdx + 1; j < endIdx; j++) {
@@ -607,24 +605,6 @@ export default function App() {
                                 // Extract blocker description - handle "Blocker:" or "Blocker " formats
                                 extractedBlocker = siblingText.replace(/^\s*blocker[:\s]*/i, '').trim();
                                 console.log(`    -> Blocker extracted: "${extractedBlocker}"`);
-                              } else if (siblingText.toLowerCase().startsWith('knowledge base:') || siblingText.toLowerCase().startsWith('wiki:')) {
-                                // Extract wiki/knowledge base URL
-                                for (const rt of siblingRichText) {
-                                  if (rt.href) {
-                                    extractedWikiUrl = rt.href.startsWith('/') ? `https://www.notion.so${rt.href}` : rt.href;
-                                    break;
-                                  }
-                                  if (rt.type === 'mention' && rt.mention?.type === 'page') {
-                                    extractedWikiUrl = `https://www.notion.so/${rt.mention.page.id.replace(/-/g, '')}`;
-                                    break;
-                                  }
-                                }
-                                // Fallback: extract URL from text
-                                if (!extractedWikiUrl) {
-                                  const urlMatch = siblingText.match(/(https?:\/\/[^\s]+)/);
-                                  if (urlMatch) extractedWikiUrl = urlMatch[1];
-                                }
-                                console.log(`    -> Wiki URL extracted: "${extractedWikiUrl}"`);
                               } else if (siblingText.length > 0) {
                                 // Use extractRichTextWithLinks to preserve embedded links
                                 const textWithLinks = extractRichTextWithLinks(siblingRichText);
@@ -638,20 +618,7 @@ export default function App() {
                               if (siblingBlock.has_children) {
                                 try {
                                   const nestedContent = await fetchToggleContentRecursive(siblingBlock.id, 0, 10);
-                                  // Extract blockers from nested content before adding to notes
-                                  for (const line of nestedContent) {
-                                    // Remove leading whitespace and bullet prefixes (• ∙ ▪)
-                                    const trimmedLine = line.replace(/^\s*[•∙▪]\s*/, '').replace(/^\s+/, '');
-                                    if (trimmedLine.toLowerCase().startsWith('blocker:') || trimmedLine.toLowerCase().startsWith('blocker ')) {
-                                      if (!extractedBlocker) {
-                                        extractedBlocker = trimmedLine.replace(/^\s*blocker[:\s]*/i, '').trim();
-                                        console.log(`    -> Blocker extracted from toggle: "${extractedBlocker}"`);
-                                      }
-                                      // Don't add blocker line to notes
-                                    } else {
-                                      noteItems.push(line);
-                                    }
-                                  }
+                                  noteItems.push(...nestedContent);
                                 } catch (e) {
                                   console.warn('Failed to fetch toggle children:', e);
                                 }
@@ -676,7 +643,7 @@ export default function App() {
                             isDone: false,
                             status: extractedStatus,
                             blocker: extractedBlocker || undefined,
-                            wikiUrl: extractedWikiUrl || '',
+                            wikiUrl: '',
                             deliveryDate: deliveryDate,
                             notes: noteItems.join('\n'),
                             milestoneId: currentMilestoneId,
@@ -770,7 +737,6 @@ export default function App() {
                   let deliveryDateBlockId = '';
                   let extractedStatus: 'green' | 'yellow' | 'red' = 'green';
                   let extractedBlocker = '';
-                  let extractedWikiUrl = '';
                   const parentBlockId = block.id; // synced_block ID
                   const noteItems: string[] = [];
                   
@@ -875,23 +841,6 @@ export default function App() {
                         // Extract blocker description - handle "Blocker:" or "Blocker " formats
                         extractedBlocker = siblingText.replace(/^\s*blocker[:\s]*/i, '').trim();
                         console.log(`    -> Blocker extracted: "${extractedBlocker}"`);
-                      } else if (siblingText.toLowerCase().startsWith('knowledge base:') || siblingText.toLowerCase().startsWith('wiki:')) {
-                        // Extract wiki/knowledge base URL
-                        for (const rt of siblingRichText) {
-                          if (rt.href) {
-                            extractedWikiUrl = rt.href.startsWith('/') ? `https://www.notion.so${rt.href}` : rt.href;
-                            break;
-                          }
-                          if (rt.type === 'mention' && rt.mention?.type === 'page') {
-                            extractedWikiUrl = `https://www.notion.so/${rt.mention.page.id.replace(/-/g, '')}`;
-                            break;
-                          }
-                        }
-                        if (!extractedWikiUrl) {
-                          const urlMatch = siblingText.match(/(https?:\/\/[^\s]+)/);
-                          if (urlMatch) extractedWikiUrl = urlMatch[1];
-                        }
-                        console.log(`    -> Wiki URL extracted: "${extractedWikiUrl}"`);
                       } else if (siblingText.length > 0) {
                         // Use extractRichTextWithLinks to preserve embedded links
                         const textWithLinks = extractRichTextWithLinks(siblingRichText);
@@ -1033,35 +982,18 @@ export default function App() {
                         }
                       }
                       
-                      // Extract blockers from toggle child content before adding to notes
-                      const filteredToggleContent: string[] = [];
-                      for (const line of toggleChildContent) {
-                        // Remove leading whitespace and bullet prefixes (• ∙ ▪)
-                        const trimmedLine = line.replace(/^\s*[•∙▪]\s*/, '').replace(/^\s+/, '');
-                        if (trimmedLine.toLowerCase().startsWith('blocker:') || trimmedLine.toLowerCase().startsWith('blocker ')) {
-                          // Extract blocker from nested content
-                          if (!extractedBlocker) {
-                            extractedBlocker = trimmedLine.replace(/^\s*blocker[:\s]*/i, '').trim();
-                            console.log(`    -> Blocker extracted from toggle: "${extractedBlocker}"`);
-                          }
-                          // Don't add blocker line to notes
-                        } else {
-                          filteredToggleContent.push(line);
-                        }
-                      }
-                      
                       if (toggleText && toggleText.length > 0) {
                         let toggleEntry = `▸ ${toggleText}`;
                         if (toggleLink) {
                           toggleEntry += `\n  🔗 ${toggleLink}`;
                         }
-                        if (filteredToggleContent.length > 0) {
-                          toggleEntry += '\n' + filteredToggleContent.join('\n');
+                        if (toggleChildContent.length > 0) {
+                          toggleEntry += '\n' + toggleChildContent.join('\n');
                         }
                         noteItems.push(toggleEntry);
-                      } else if (filteredToggleContent.length > 0) {
+                      } else if (toggleChildContent.length > 0) {
                         // No toggle title but has content
-                        noteItems.push(filteredToggleContent.join('\n'));
+                        noteItems.push(toggleChildContent.join('\n'));
                       }
                     } else if (siblingType === 'child_page') {
                       const pageName = siblingBlock.child_page?.title || '';
@@ -1109,7 +1041,7 @@ export default function App() {
                     isDone: false,
                     status: extractedStatus,
                     blocker: extractedBlocker || undefined,
-                    wikiUrl: extractedWikiUrl || '',
+                    wikiUrl: '', // Will be set from KNOWN_URLS based on lane
                     deliveryDate: deliveryDate,
                     notes: notes.trim(),
                     milestoneId: currentMilestoneId,
@@ -1427,12 +1359,6 @@ export default function App() {
                     }
                     console.log(`    -> Status: "${sticky.status}"`);
                   }
-                  // Extract Blocker from direct paragraph
-                  else if (sibText.trim().toLowerCase().startsWith('blocker:') || sibText.trim().toLowerCase().startsWith('blocker ')) {
-                    sticky.blockerBlockId = siblingBlock.id;
-                    sticky.blocker = sibText.replace(/^\s*blocker[:\s]*/i, '').trim();
-                    console.log(`    -> Blocker: "${sticky.blocker}"`);
-                  }
                   // Collect other content as notes
                   else if (sibText.length > 0) {
                     if (sibType === 'bulleted_list_item') {
@@ -1443,20 +1369,7 @@ export default function App() {
                       if (siblingBlock.has_children) {
                         try {
                           const nestedContent = await fetchToggleContentRecursive(siblingBlock.id, 0, 10);
-                          // Extract blockers from nested content
-                          for (const line of nestedContent) {
-                            // Remove leading whitespace and bullet prefixes (• ∙ ▪)
-                            const trimmedLine = line.replace(/^\s*[•∙▪]\s*/, '').replace(/^\s+/, '');
-                            if (trimmedLine.toLowerCase().startsWith('blocker:') || trimmedLine.toLowerCase().startsWith('blocker ')) {
-                              if (!sticky.blocker) {
-                                sticky.blocker = trimmedLine.replace(/^\s*blocker[:\s]*/i, '').trim();
-                                console.log(`    -> Blocker extracted from toggle: "${sticky.blocker}"`);
-                              }
-                              // Don't add blocker line to notes
-                            } else {
-                              noteItems.push(line);
-                            }
-                          }
+                          noteItems.push(...nestedContent);
                         } catch (e) {
                           console.warn('Failed to fetch toggle children:', e);
                         }
@@ -1485,20 +1398,7 @@ export default function App() {
                               if (sibChild.has_children) {
                                 try {
                                   const nestedContent = await fetchToggleContentRecursive(sibChild.id, 0, 10);
-                                  // Extract blockers from nested content
-                                  for (const line of nestedContent) {
-                                    // Remove leading whitespace and bullet prefixes (• ∙ ▪)
-                                    const trimmedLine = line.replace(/^\s*[•∙▪]\s*/, '').replace(/^\s+/, '');
-                                    if (trimmedLine.toLowerCase().startsWith('blocker:') || trimmedLine.toLowerCase().startsWith('blocker ')) {
-                                      if (!sticky.blocker) {
-                                        sticky.blocker = trimmedLine.replace(/^\s*blocker[:\s]*/i, '').trim();
-                                        console.log(`    -> Blocker extracted from nested toggle: "${sticky.blocker}"`);
-                                      }
-                                      // Don't add blocker line to notes
-                                    } else {
-                                      noteItems.push(line);
-                                    }
-                                  }
+                                  noteItems.push(...nestedContent);
                                 } catch (e) {
                                   console.warn('Failed to fetch nested toggle children:', e);
                                 }
@@ -1542,14 +1442,35 @@ export default function App() {
 
         // Post-process: Associate known URLs with specific items
         const KNOWN_URLS: Record<string, string> = {
+          // Core Infrastructure
+          'lane-a1': 'https://www.notion.so/cere/Data-Onboarding-Wiki-A1-1c6d800083d680a09e43da16907b2555', // Data Onboarding (A1)
+          'lane-a2': 'https://www.notion.so/cere/ROB-Wiki-A2-1c6d800083d680b0b8efd23e5efb1852', // ROB (A2)
+          'lane-a3': 'https://www.notion.so/cere/Orchestrator-Wiki-A3-1c6d800083d68098b148e6fa1d5b763b', // Orchestrator (A3)
+          'lane-a4': 'https://www.notion.so/cere/Data-Vault-Wiki-A4-1c6d800083d6806383b5cfed9c558233', // Data Vault (A4)
+          'lane-a5': 'https://www.notion.so/cere/Global-Agent-Registry-Wiki-A5-1c6d800083d680b9b84fe1c9d1edb7b8', // Agent Registry (A5)
+          'lane-a6': 'https://www.notion.so/cere/TDD-Setup-Wiki-A0-0-2a0d800083d6807bb75edf2ae01c1acd', // Testing/Infra (A6) - links to TDD Setup
+          'lane-z1': 'https://www.notion.so/cere/CEF-AI-infra-DevOps-Wiki-Z1-1c7d800083d6801e8dacdd3c7308c8e8', // DevOps (Z1)
+          // Runtimes
+          'lane-a8-inf': 'https://www.notion.so/cere/Inference-Runtime-Wiki-A8-276d800083d680dd8619e65dd616026e', // Inference Runtime (A8)
+          'lane-a9': 'https://www.notion.so/cere/Agent-Runtime-Wiki-A9-276d800083d68043aa86cebbe8d34ad9', // Agent Runtime (A9)
+          'lane-a10': 'https://www.notion.so/cere/Resource-Allocation-Wiki-A10-242d800083d680a6b188e5d0f3726a8c', // Resource Allocation (A10)
+          'lane-a11': 'https://www.notion.so/cere/Deployments-Wiki-A11-242d800083d6800f8a4fdd3e1fc11b06', // Deployments (A11)
+          'lane-a12': 'https://www.notion.so/cere/Event-Runtime-Wiki-A12-242d800083d680d8ab1cc9d9aaa67df2', // Event Runtime (A12)
+          'lane-b1': 'https://www.notion.so/cere/CEF-AI-DSC-Core-Wiki-B1-1c6d800083d6809699fef2d4d29cb818', // DDC Core (B1)
+          // Product & Demos
+          'lane-a7': 'https://www.notion.so/cere/Nightingale-Integration-Wiki-A7-1c6d800083d680b2bd04e564911810eb', // NG Demo (A7)
           'lane-a8b': 'https://www.notion.so/cere/Gaming-Use-Case-A8b-2a0d800083d68033a8dffa19cbaf0620', // Gaming Demo (A8b)
-          'lane-a7': 'https://www.notion.so/cere/A7-Nightingale-Integration-Wiki', // NG Demo (A7)
-          'lane-s1': 'https://www.notion.so/cere/S1-CEF-Demos-2ccd800083d680cc883bf8e4fa986e04', // CEF Demos (S1)
-          'lane-s2': 'https://www.notion.so/cere/S2-CEF-Website-Vertical-Pages-2ccd800083d68020891ed6d9f4061b3e', // CEF Website (S2)
-          'lane-s3': 'https://www.notion.so/cere/CEF-ICP-S3-2ccd800083d68003be72ddc9a1ce2f03', // CEF ICP (S3)
-          'lane-s4': 'https://www.notion.so/cere/CEF-Campaigns-S4-2ccd800083d6808e9b92df0c93146347', // CEF Campaigns (S4)
+          // B3: Marketing
+          'lane-s0': 'https://www.notion.so/cere/CEF-AI-Core-Product-Content-Wiki-S0-262d800083d68042ac62d0773842b54b', // Content (S0)
+          'lane-s1': 'https://www.notion.so/cere/CEF-Demos-S1-2ccd800083d680cc883bf8e4fa986e04', // CEF Demos (S1)
+          'lane-s2': 'https://www.notion.so/cere/CEF-Website-Vertical-Pages-S2-2ccd800083d68020891ed6d9f4061b3e', // CEF Website (S2)
+          'lane-s3': 'https://www.notion.so/cere/CEF-Campaigns-S3-2ccd800083d6808e9b92df0c93146347', // Campaigns (S3)
+          // B4: Sales
+          'lane-s4': 'https://www.notion.so/cere/CEF-Enterprise-GTM-S4-2ccd800083d68003be72ddc9a1ce2f03', // Enterprise GTM (S4)
           'lane-b3': 'https://www.notion.so/cere/CEF-AI-Product-Marketing-B3-293d800083d680fb9b48e6a9b47aaf77', // Product Marketing (B3)
-          'lane-b4': 'https://www.notion.so/cere/B4-CEF-AI-Enterprise-G2M-Wiki', // Enterprise G2M (B4)
+          'lane-b4': 'https://www.notion.so/cere/CEF-AI-Enterprise-G2M-Wiki-B4-21cd800083d68003a0aed0b2c9e641d3', // Enterprise G2M (B4)
+          // Team & Readiness
+          'lane-a0': 'https://www.notion.so/cere/TDD-Setup-Wiki-A0-0-2a0d800083d6807bb75edf2ae01c1acd', // TDD Setup (A0.0)
         };
         
         // Apply known URLs to stickies that don't have a wikiUrl yet
@@ -2305,14 +2226,35 @@ export default function App() {
                         {lanes.map((lane) => {
                           // Get wiki URL for this lane
                           const laneWikiUrls: Record<string, string> = {
+                            // Core Infrastructure
+                            'lane-a1': 'https://www.notion.so/cere/Data-Onboarding-Wiki-A1-1c6d800083d680a09e43da16907b2555',
+                            'lane-a2': 'https://www.notion.so/cere/ROB-Wiki-A2-1c6d800083d680b0b8efd23e5efb1852',
+                            'lane-a3': 'https://www.notion.so/cere/Orchestrator-Wiki-A3-1c6d800083d68098b148e6fa1d5b763b',
+                            'lane-a4': 'https://www.notion.so/cere/Data-Vault-Wiki-A4-1c6d800083d6806383b5cfed9c558233',
+                            'lane-a5': 'https://www.notion.so/cere/Global-Agent-Registry-Wiki-A5-1c6d800083d680b9b84fe1c9d1edb7b8',
+                            'lane-a6': 'https://www.notion.so/cere/TDD-Setup-Wiki-A0-0-2a0d800083d6807bb75edf2ae01c1acd',
+                            'lane-z1': 'https://www.notion.so/cere/CEF-AI-infra-DevOps-Wiki-Z1-1c7d800083d6801e8dacdd3c7308c8e8',
+                            // Runtimes
+                            'lane-a8-inf': 'https://www.notion.so/cere/Inference-Runtime-Wiki-A8-276d800083d680dd8619e65dd616026e',
+                            'lane-a9': 'https://www.notion.so/cere/Agent-Runtime-Wiki-A9-276d800083d68043aa86cebbe8d34ad9',
+                            'lane-a10': 'https://www.notion.so/cere/Resource-Allocation-Wiki-A10-242d800083d680a6b188e5d0f3726a8c',
+                            'lane-a11': 'https://www.notion.so/cere/Deployments-Wiki-A11-242d800083d6800f8a4fdd3e1fc11b06',
+                            'lane-a12': 'https://www.notion.so/cere/Event-Runtime-Wiki-A12-242d800083d680d8ab1cc9d9aaa67df2',
+                            'lane-b1': 'https://www.notion.so/cere/CEF-AI-DSC-Core-Wiki-B1-1c6d800083d6809699fef2d4d29cb818',
+                            // Product & Demos
+                            'lane-a7': 'https://www.notion.so/cere/Nightingale-Integration-Wiki-A7-1c6d800083d680b2bd04e564911810eb',
                             'lane-a8b': 'https://www.notion.so/cere/Gaming-Use-Case-A8b-2a0d800083d68033a8dffa19cbaf0620',
-                            'lane-a7': 'https://www.notion.so/cere/A7-Nightingale-Integration-Wiki',
-                            'lane-s1': 'https://www.notion.so/cere/S1-CEF-Demos-2ccd800083d680cc883bf8e4fa986e04',
-                            'lane-s2': 'https://www.notion.so/cere/S2-CEF-Website-Vertical-Pages-2ccd800083d68020891ed6d9f4061b3e',
-                            'lane-s3': 'https://www.notion.so/cere/CEF-ICP-S3-2ccd800083d68003be72ddc9a1ce2f03',
-                            'lane-s4': 'https://www.notion.so/cere/CEF-Campaigns-S4-2ccd800083d6808e9b92df0c93146347',
+                            // B3: Marketing
+                            'lane-s0': 'https://www.notion.so/cere/CEF-AI-Core-Product-Content-Wiki-S0-262d800083d68042ac62d0773842b54b',
+                            'lane-s1': 'https://www.notion.so/cere/CEF-Demos-S1-2ccd800083d680cc883bf8e4fa986e04',
+                            'lane-s2': 'https://www.notion.so/cere/CEF-Website-Vertical-Pages-S2-2ccd800083d68020891ed6d9f4061b3e',
+                            'lane-s3': 'https://www.notion.so/cere/CEF-Campaigns-S3-2ccd800083d6808e9b92df0c93146347',
+                            // B4: Sales
+                            'lane-s4': 'https://www.notion.so/cere/CEF-Enterprise-GTM-S4-2ccd800083d68003be72ddc9a1ce2f03',
                             'lane-b3': 'https://www.notion.so/cere/CEF-AI-Product-Marketing-B3-293d800083d680fb9b48e6a9b47aaf77',
-                            'lane-b4': 'https://www.notion.so/cere/B4-CEF-AI-Enterprise-G2M-Wiki',
+                            'lane-b4': 'https://www.notion.so/cere/CEF-AI-Enterprise-G2M-Wiki-B4-21cd800083d68003a0aed0b2c9e641d3',
+                            // Team & Readiness
+                            'lane-a0': 'https://www.notion.so/cere/TDD-Setup-Wiki-A0-0-2a0d800083d6807bb75edf2ae01c1acd',
                           };
                           const wikiUrl = laneWikiUrls[lane.id];
                           
@@ -2711,11 +2653,11 @@ export default function App() {
 
                      return (
                         <div key={lane.id} className="border border-slate-200 rounded-lg overflow-hidden">
-                           <div className={`px-3 py-2 bg-slate-100 border-b border-slate-200 flex items-center gap-2`}>
-                              <div className={`p-1.5 rounded ${lane.headerColorClass} shadow-sm flex items-center justify-center`}>
-                                 {React.cloneElement(lane.icon as React.ReactElement, { size: 12, className: 'text-white' })}
+                           <div className={`px-3 py-2 ${lane.headerColorClass} bg-opacity-10 border-b border-slate-100 flex items-center gap-2`}>
+                              <div className={`p-1 rounded-full text-white ${lane.headerColorClass} shadow-sm`}>
+                                 {React.cloneElement(lane.icon as React.ReactElement, { size: 12 })}
                               </div>
-                              <span className="text-xs font-bold text-slate-700">{lane.title}</span>
+                              <span className="text-xs font-bold text-slate-800">{lane.title}</span>
                            </div>
                            <div className="bg-slate-50 p-2 space-y-2">
                               {laneStickies.map(sticky => (

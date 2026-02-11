@@ -16,25 +16,25 @@ export const QUARTERS: Quarter[] = [
 // CEF Lanes - Used when CEF view is active
 export const CEF_LANES: Lane[] = [
   // --- CORE INFRASTRUCTURE ---
-  { id: 'lane-a1', group: 'Core Infrastructure', title: 'Data Onboarding (A1)', subtitle: 'Ingestion Service', colorClass: 'bg-blue-50', headerColorClass: 'bg-blue-600', icon: <Database /> },
-  { id: 'lane-a2', group: 'Core Infrastructure', title: 'ROB (A2)', subtitle: 'Orchestration Builder', colorClass: 'bg-blue-50', headerColorClass: 'bg-blue-700', icon: <Layout /> },
-  { id: 'lane-a3', group: 'Core Infrastructure', title: 'Orchestrator (A3)', subtitle: 'Compute Node', colorClass: 'bg-blue-50', headerColorClass: 'bg-blue-600', icon: <Cpu /> },
-  { id: 'lane-a4', group: 'Core Infrastructure', title: 'Data Vault (A4)', subtitle: 'Storage Layer', colorClass: 'bg-blue-50', headerColorClass: 'bg-blue-700', icon: <Database /> },
-  { id: 'lane-a5', group: 'Core Infrastructure', title: 'Agent Registry (A5)', subtitle: 'Core Registry', colorClass: 'bg-blue-50', headerColorClass: 'bg-blue-600', icon: <Settings /> },
-  { id: 'lane-a6', group: 'Core Infrastructure', title: 'Testing / Infra (A6)', subtitle: 'Observability', colorClass: 'bg-blue-50', headerColorClass: 'bg-blue-700', icon: <Activity /> },
-  { id: 'lane-z1', group: 'Core Infrastructure', title: 'Infra / DevOps (Z1)', subtitle: 'System Readiness', colorClass: 'bg-slate-50', headerColorClass: 'bg-slate-600', icon: <Terminal /> },
+  { id: 'lane-a1', group: 'Core Infrastructure', title: 'Data Onboarding (A1)', subtitle: 'Ingestion Service', colorClass: 'bg-blue-50', headerColorClass: 'bg-blue-600', icon: <Database />, wikiUrl: 'https://www.notion.so/cere/Data-Onboarding-Wiki-A1-1c6d800083d680a09e43da16907b2555' },
+  { id: 'lane-a2', group: 'Core Infrastructure', title: 'ROB (A2)', subtitle: 'Orchestration Builder', colorClass: 'bg-blue-50', headerColorClass: 'bg-blue-700', icon: <Layout />, wikiUrl: 'https://www.notion.so/cere/ROB-Wiki-A2-1c6d800083d680b0b8efd23e5efb1852' },
+  { id: 'lane-a3', group: 'Core Infrastructure', title: 'Orchestrator (A3)', subtitle: 'Compute Node', colorClass: 'bg-blue-50', headerColorClass: 'bg-blue-600', icon: <Cpu />, wikiUrl: 'https://www.notion.so/cere/Orchestrator-Wiki-A3-1c6d800083d68098b148e6fa1d5b763b' },
+  { id: 'lane-a4', group: 'Core Infrastructure', title: 'Data Vault (A4)', subtitle: 'Storage Layer', colorClass: 'bg-blue-50', headerColorClass: 'bg-blue-700', icon: <Database />, wikiUrl: 'https://www.notion.so/cere/Data-Vault-Wiki-A4-1c6d800083d6806383b5cfed9c558233' },
+  { id: 'lane-a5', group: 'Core Infrastructure', title: 'Agent Registry (A5)', subtitle: 'Core Registry', colorClass: 'bg-blue-50', headerColorClass: 'bg-blue-600', icon: <Settings />, wikiUrl: 'https://www.notion.so/cere/Global-Agent-Registry-Wiki-A5-1c6d800083d680b9b84fe1c9d1edb7b8' },
+  { id: 'lane-a6', group: 'Core Infrastructure', title: 'Testing / Infra (A6)', subtitle: 'Observability', colorClass: 'bg-blue-50', headerColorClass: 'bg-blue-700', icon: <Activity />, wikiUrl: 'https://www.notion.so/cere/TDD-Setup-Wiki-A0-0-2a0d800083d6807bb75edf2ae01c1acd' },
+  { id: 'lane-z1', group: 'Core Infrastructure', title: 'Infra / DevOps (Z1)', subtitle: 'System Readiness', colorClass: 'bg-slate-50', headerColorClass: 'bg-slate-600', icon: <Terminal />, wikiUrl: 'https://www.notion.so/cere/CEF-AI-infra-DevOps-Wiki-Z1-1c7d800083d6801e8dacdd3c7308c8e8' },
   
   // --- RUNTIMES ---
-  { id: 'lane-a8-inf', group: 'Runtimes', title: 'Inference Runtime (A8)', subtitle: 'Model Serving', colorClass: 'bg-sky-50', headerColorClass: 'bg-sky-600', icon: <Cpu /> },
-  { id: 'lane-a9', group: 'Runtimes', title: 'Agent Runtime (A9)', subtitle: 'Agent Execution', colorClass: 'bg-sky-50', headerColorClass: 'bg-sky-600', icon: <Settings /> },
-  { id: 'lane-a10', group: 'Runtimes', title: 'Resource Allocation (A10)', subtitle: 'Compute Alloc', colorClass: 'bg-sky-50', headerColorClass: 'bg-sky-600', icon: <Settings /> },
-  { id: 'lane-a11', group: 'Runtimes', title: 'Deployments (A11)', subtitle: 'Deployment Mgr', colorClass: 'bg-sky-50', headerColorClass: 'bg-sky-600', icon: <Rocket /> },
-  { id: 'lane-a12', group: 'Runtimes', title: 'Event Runtime (A12)', subtitle: 'Event Loop', colorClass: 'bg-sky-50', headerColorClass: 'bg-sky-600', icon: <Activity /> },
-  { id: 'lane-b1', group: 'Runtimes', title: 'DDC Core (B1)', subtitle: 'Decentralized Data', colorClass: 'bg-sky-50', headerColorClass: 'bg-sky-700', icon: <Database /> },
+  { id: 'lane-a8-inf', group: 'Runtimes', title: 'Inference Runtime (A8)', subtitle: 'Model Serving', colorClass: 'bg-sky-50', headerColorClass: 'bg-sky-600', icon: <Cpu />, wikiUrl: 'https://www.notion.so/cere/Inference-Runtime-Wiki-A8-276d800083d680dd8619e65dd616026e' },
+  { id: 'lane-a9', group: 'Runtimes', title: 'Agent Runtime (A9)', subtitle: 'Agent Execution', colorClass: 'bg-sky-50', headerColorClass: 'bg-sky-600', icon: <Settings />, wikiUrl: 'https://www.notion.so/cere/Agent-Runtime-Wiki-A9-276d800083d68043aa86cebbe8d34ad9' },
+  { id: 'lane-a10', group: 'Runtimes', title: 'Resource Allocation (A10)', subtitle: 'Compute Alloc', colorClass: 'bg-sky-50', headerColorClass: 'bg-sky-600', icon: <Settings />, wikiUrl: 'https://www.notion.so/cere/Resource-Allocation-Wiki-A10-242d800083d680a6b188e5d0f3726a8c' },
+  { id: 'lane-a11', group: 'Runtimes', title: 'Deployments (A11)', subtitle: 'Deployment Mgr', colorClass: 'bg-sky-50', headerColorClass: 'bg-sky-600', icon: <Rocket />, wikiUrl: 'https://www.notion.so/cere/Deployments-Wiki-A11-242d800083d6800f8a4fdd3e1fc11b06' },
+  { id: 'lane-a12', group: 'Runtimes', title: 'Event Runtime (A12)', subtitle: 'Event Loop', colorClass: 'bg-sky-50', headerColorClass: 'bg-sky-600', icon: <Activity />, wikiUrl: 'https://www.notion.so/cere/Event-Runtime-Wiki-A12-242d800083d680d8ab1cc9d9aaa67df2' },
+  { id: 'lane-b1', group: 'Runtimes', title: 'DDC Core (B1)', subtitle: 'Decentralized Data', colorClass: 'bg-sky-50', headerColorClass: 'bg-sky-700', icon: <Database />, wikiUrl: 'https://www.notion.so/cere/CEF-AI-DSC-Core-Wiki-B1-1c6d800083d6809699fef2d4d29cb818' },
 
   // --- PRODUCT / DEMOS ---
-  { id: 'lane-a7', group: 'Product & Demos', title: 'NG Demo (A7)', subtitle: 'Nightingale', colorClass: 'bg-orange-50', headerColorClass: 'bg-orange-500', icon: <Rocket /> },
-  { id: 'lane-a8b', group: 'Product & Demos', title: 'Gaming Demo (A8b)', subtitle: 'Gaming Use Case', colorClass: 'bg-orange-50', headerColorClass: 'bg-orange-500', icon: <Rocket /> },
+  { id: 'lane-a7', group: 'Product & Demos', title: 'NG Demo (A7)', subtitle: 'Nightingale', colorClass: 'bg-orange-50', headerColorClass: 'bg-orange-500', icon: <Rocket />, wikiUrl: 'https://www.notion.so/cere/Nightingale-Integration-Wiki-A7-1c6d800083d680b2bd04e564911810eb' },
+  { id: 'lane-a8b', group: 'Product & Demos', title: 'Gaming Demo (A8b)', subtitle: 'Gaming Use Case', colorClass: 'bg-orange-50', headerColorClass: 'bg-orange-500', icon: <Rocket />, wikiUrl: 'https://www.notion.so/cere/Gaming-Use-Case-A8b-2a0d800083d68033a8dffa19cbaf0620' },
 
   // --- B3: MARKETING ---
   { id: 'lane-s0', group: 'B3: Marketing', title: 'Content (S0)', subtitle: 'Core Content', colorClass: 'bg-blue-50', headerColorClass: 'bg-blue-500', icon: <Users />, wikiUrl: 'https://www.notion.so/cere/CEF-AI-Core-Product-Content-Wiki-S0-262d800083d68042ac62d0773842b54b' },
@@ -42,11 +42,11 @@ export const CEF_LANES: Lane[] = [
   { id: 'lane-s3', group: 'B3: Marketing', title: 'Campaigns (S3)', subtitle: 'Marketing Campaigns', colorClass: 'bg-blue-50', headerColorClass: 'bg-blue-500', icon: <Rocket />, wikiUrl: 'https://www.notion.so/cere/CEF-Campaigns-S3-2ccd800083d6808e9b92df0c93146347' },
 
   // --- B4: SALES ---
-  { id: 'lane-s4', group: 'B4: Sales', title: 'Enterprise GTM (S4)', subtitle: 'Go-to-Market', colorClass: 'bg-green-50', headerColorClass: 'bg-green-500', icon: <Handshake /> },
+  { id: 'lane-s4', group: 'B4: Sales', title: 'Enterprise GTM (S4)', subtitle: 'Go-to-Market', colorClass: 'bg-green-50', headerColorClass: 'bg-green-500', icon: <Handshake />, wikiUrl: 'https://www.notion.so/cere/CEF-AI-Enterprise-G2M-Wiki-B4-21cd800083d68003a0aed0b2c9e641d3' },
   { id: 'lane-s1', group: 'B4: Sales', title: 'CEF Demos (S1)', subtitle: 'Sales Collateral', colorClass: 'bg-green-50', headerColorClass: 'bg-green-500', icon: <Rocket />, wikiUrl: 'https://www.notion.so/cere/CEF-Demos-S1-2ccd800083d680cc883bf8e4fa986e04' },
 
   // --- TEAM / READINESS ---
-  { id: 'lane-a0', group: 'Team & Readiness', title: 'TDD Setup (A0.0)', subtitle: 'Quality', colorClass: 'bg-slate-100', headerColorClass: 'bg-slate-500', icon: <Settings /> },
+  { id: 'lane-a0', group: 'Team & Readiness', title: 'TDD Setup (A0.0)', subtitle: 'Quality', colorClass: 'bg-slate-100', headerColorClass: 'bg-slate-500', icon: <Settings />, wikiUrl: 'https://www.notion.so/cere/TDD-Setup-Wiki-A0-0-2a0d800083d6807bb75edf2ae01c1acd' },
   { id: 'lane-sys-ready', group: 'Team & Readiness', title: 'Infra Readiness', subtitle: 'System', colorClass: 'bg-slate-100', headerColorClass: 'bg-slate-500', icon: <Settings /> },
   { id: 'lane-dev-gtm', group: 'Team & Readiness', title: 'Developer GTM', subtitle: 'Strategy', colorClass: 'bg-slate-100', headerColorClass: 'bg-slate-500', icon: <Users /> },
   { id: 'lane-int-content', group: 'Team & Readiness', title: 'Integration Content', subtitle: 'Content', colorClass: 'bg-yellow-50', headerColorClass: 'bg-yellow-500', icon: <Users /> },
